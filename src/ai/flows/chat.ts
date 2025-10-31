@@ -6,12 +6,19 @@ import { getProductInformation } from './shopify-tools';
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
-  content: z.string(),
+  content: z.array(
+    z.object({
+      text: z.string().optional(),
+      media: z.object({ url: z.string() }).optional(),
+    })
+  ),
 });
 
+
 const ChatInputSchema = z.object({
-  history: z.array(MessageSchema).describe("The chat history."),
+  history: z.array(MessageSchema),
   message: z.string().describe("The user's message."),
+  imageUrl: z.string().optional().describe("An optional image URL to include with the message.")
 });
 
 export type ChatInput = z.infer<typeof ChatInputSchema>;
@@ -33,12 +40,17 @@ const chatFlow = ai.defineFlow(
     outputSchema: ChatOutputSchema,
   },
   async (input) => {
-    const { history, message } = input;
+    const { history, message, imageUrl } = input;
+
+    const prompt: any[] = [{ text: message }];
+    if (imageUrl) {
+      prompt.push({ media: { url: imageUrl } });
+    }
 
     const result = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
-      prompt: message,
-      history: history.map(m => ({role: m.role, content: [{text: m.content}]})),
+      prompt: prompt,
+      history: history,
       tools: [getProductInformation],
     });
 

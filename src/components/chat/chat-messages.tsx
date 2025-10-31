@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatAvatar } from "./chat-avatar";
 import type { Message } from "./chat-interface";
+import Image from "next/image";
 
 type ChatMessagesProps = {
   messages: Message[];
@@ -40,6 +41,11 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                   : "bg-card border"
               )}
             >
+              {message.imageUrl && (
+                <div className="relative w-full aspect-video rounded-md overflow-hidden mb-2">
+                    <Image src={message.imageUrl} alt="User uploaded image" fill className="object-cover" />
+                </div>
+              )}
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
             </div>
             {message.role === "user" && <ChatAvatar role="user" />}

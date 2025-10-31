@@ -9,12 +9,13 @@ import { ChatMessages } from "./chat-messages";
 export type Message = {
   role: "user" | "model";
   content: string;
+  imageUrl?: string;
 };
 
 const initialMessages: Message[] = [
     {
       role: "model",
-      content: "Hello! I am Gemini, your friendly AI assistant. How can I help you today?",
+      content: "Hello! I am Gemini, your friendly AI assistant. How can I help you today? You can also send me images.",
     },
   ];
 
@@ -23,14 +24,19 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleSendMessage = async (messageContent: string) => {
+  const handleSendMessage = async (messageContent: string, imageUrl?: string) => {
     setIsLoading(true);
-    const newMessages: Message[] = [...messages, { role: "user", content: messageContent }];
+    const newMessages: Message[] = [...messages, { role: "user", content: messageContent, imageUrl }];
     setMessages(newMessages);
 
     try {
-      const history = newMessages.slice(0, -1);
-      const result = await chat({ history, message: messageContent });
+      const historyForApi = newMessages.slice(0, -1).map(msg => ({
+        role: msg.role,
+        content: [{ text: msg.content }]
+      }));
+
+      const result = await chat({ history: historyForApi, message: messageContent, imageUrl });
+      
       setMessages([
         ...newMessages,
         { role: "model", content: result.response },
