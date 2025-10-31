@@ -2,6 +2,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { getProductInformation } from './shopify-tools';
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -37,7 +38,8 @@ const chatFlow = ai.defineFlow(
     const result = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
       prompt: message,
-      history: history,
+      history: history.map(m => ({...m, content: [{text: m.content}]})),
+      tools: [getProductInformation],
     });
 
     const response = result.text;
