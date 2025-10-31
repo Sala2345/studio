@@ -2,12 +2,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import {
-  GenerateRequest,
-  GenerationCommon,
-  Part,
-  Role,
-} from 'genkit/generate';
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -39,21 +33,16 @@ const chatFlow = ai.defineFlow(
   },
   async (input) => {
     const { history, message } = input;
-    
-    const llm = ai.getModel();
 
-    const historyForLlm: GenerationCommon['history'] = history.map(msg => ({
-      role: msg.role as Role,
-      content: [{ text: msg.content }] as Part[],
-    }));
+    const messages = [
+        ...history,
+        { role: 'user' as const, content: message },
+    ];
 
-    const result = await llm.generate({
-      history: historyForLlm,
-      prompt: message,
-      output: {
-        format: 'text',
-      }
-    } as GenerateRequest);
+    const result = await ai.generate({
+        model: 'googleai/gemini-2.5-flash',
+        messages: messages,
+    });
 
     const response = result.text;
     
