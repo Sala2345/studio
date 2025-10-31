@@ -2,6 +2,12 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import {
+  GenerateRequest,
+  GenerationCommon,
+  Part,
+  Role,
+} from 'genkit/generate';
 
 const MessageSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -36,9 +42,9 @@ const chatFlow = ai.defineFlow(
     
     const llm = ai.getModel();
 
-    const historyForLlm = history.map(msg => ({
-      role: msg.role,
-      content: [{ text: msg.content }]
+    const historyForLlm: GenerationCommon['history'] = history.map(msg => ({
+      role: msg.role as Role,
+      content: [{ text: msg.content }] as Part[],
     }));
 
     const result = await llm.generate({
@@ -47,14 +53,9 @@ const chatFlow = ai.defineFlow(
       output: {
         format: 'text',
       }
-    });
+    } as GenerateRequest);
 
-    const response = result.output();
-
-    if (typeof response !== 'string') {
-        // This should not happen with text format
-        throw new Error('Unexpected response format from AI model.');
-    }
+    const response = result.text;
     
     return { response };
   }
