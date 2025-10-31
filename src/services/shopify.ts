@@ -2,7 +2,7 @@
  * @fileOverview Service for interacting with the Shopify Admin API.
  */
 
-export async function getProducts(query?: string) {
+async function shopifyFetch(graphqlQuery: { query: string; variables?: object }) {
   const storeUrl = process.env.SHOPIFY_STORE_URL;
   const accessToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
 
@@ -10,8 +10,37 @@ export async function getProducts(query?: string) {
     throw new Error('Shopify store URL or access token is not configured.');
   }
 
-  // A more specific GraphQL query might be better here depending on the use case.
-  // This is a general-purpose query to get basic product info.
+  try {
+    const response = await fetch(`https://${storeUrl}/admin/api/2024-04/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify(graphqlQuery),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('Shopify API request failed:', response.status, errorBody);
+        throw new Error(`Shopify API request failed with status ${response.status}`);
+    }
+
+    const jsonResponse = await response.json();
+    if(jsonResponse.errors) {
+        console.error('GraphQL errors:', jsonResponse.errors);
+        // Return a structured error so the AI can potentially understand it.
+        return { error: 'Error executing GraphQL query.', details: jsonResponse.errors };
+    }
+
+    return jsonResponse.data;
+  } catch (error) {
+    console.error('Failed to fetch from Shopify:', error);
+    return { error: 'Failed to fetch data from Shopify.' };
+  }
+}
+
+export async function getProducts(query?: string) {
   const graphqlQuery = {
     query: `
       query getProducts($query: String) {
@@ -38,33 +67,62 @@ export async function getProducts(query?: string) {
     variables: { query },
   };
 
-  try {
-    const response = await fetch(`https://${storeUrl}/admin/api/2024-04/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': accessToken,
+  const data = await shopifyFetch(graphqlQuery);
+  return data?.products?.edges.map((edge: any) => edge.node) || data;
+}
+
+export async function createPage(title: string, bodyHtml: string) {
+    const graphqlQuery = {
+      query: `
+        mutation pageCreate($input: PageCreateInput!) {
+          pageCreate(input: $input) {
+            page {
+              id
+              title
+              handle
+              url
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `,
+      variables: {
+        input: {
+          title,
+          bodyHtml,
+        },
       },
-      body: JSON.stringify(graphqlQuery),
-    });
+    };
+  
+    return shopifyFetch(graphqlQuery);
+}
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('Shopify API request failed:', response.status, errorBody);
-        throw new Error(`Shopify API request failed with status ${response.status}`);
-    }
-
-    const jsonResponse = await response.json();
-    if(jsonResponse.errors) {
-        console.error('GraphQL errors:', jsonResponse.errors);
-        throw new Error('Error executing GraphQL query.');
-    }
-
-    return jsonResponse.data?.products?.edges.map((edge: any) => edge.node) || [];
-  } catch (error) {
-    console.error('Failed to fetch from Shopify:', error);
-    // It's often better to return a friendly error message or an empty array
-    // to the AI rather than throwing an exception.
-    return { error: 'Failed to fetch product data from Shopify.' };
-  }
+export async function updateProduct(productId: string, productInput: any) {
+    const graphqlQuery = {
+        query: `
+            mutation productUpdate($input: ProductInput!) {
+                productUpdate(input: $input) {
+                    product {
+                        id
+                        title
+                        bodyHtml
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }
+        `,
+        variables: {
+            input: {
+                id: productId,
+                ...productInput
+            }
+        }
+    };
+    return shopifyFetch(graphqlQuery);
 }

@@ -2,18 +2,34 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getProductInformation } from './shopify-tools';
+import {
+  getProductInformation,
+  createShopifyPage,
+  updateShopifyProduct,
+  generateLiquidCode,
+} from './shopify-tools';
 
 const MessageSchema = z.object({
-  role: z.enum(['user', 'model']),
+  role: z.enum(['user', 'model', 'tool']),
   content: z.array(
     z.object({
       text: z.string().optional(),
       media: z.object({ url: z.string() }).optional(),
+      toolRequest: z
+        .object({
+          name: z.string(),
+          input: z.any(),
+        })
+        .optional(),
+      toolResponse: z
+        .object({
+          name: z.string(),
+          output: z.any(),
+        })
+        .optional(),
     })
   ),
 });
-
 
 const ChatInputSchema = z.object({
   history: z.array(MessageSchema),
@@ -51,7 +67,12 @@ const chatFlow = ai.defineFlow(
       model: 'googleai/gemini-2.5-flash',
       prompt: prompt,
       history: history,
-      tools: [getProductInformation],
+      tools: [
+        getProductInformation,
+        createShopifyPage,
+        updateShopifyProduct,
+        generateLiquidCode,
+      ],
     });
 
     const response = result.text;
