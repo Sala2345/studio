@@ -1,0 +1,38 @@
+{
+  "templates": [
+    {
+      "id": "blade-lite-800",
+      "name": "Blade Lite 800",
+      "defaultWidth": 31.5,
+      "defaultHeight": 83.25,
+      "allowAnySize": false
+    },
+    {
+      "id": "blade-lite-850",
+      "name": "Blade Lite 850",
+      "defaultWidth": 33.5,
+      "defaultHeight": 83.25,
+      "allowAnySize": false
+    },
+    {
+      "id": "car-magnets",
+      "name": "Car Magnets",
+      "allowAnySize": true
+    },
+    {
+      "id": "signicade-deluxe",
+      "name": "Signicade Deluxe",
+      "allowAnySize": true
+    },
+    {
+      "id": "signicade-standard",
+      "name": "Signicade Sandwich Board",
+      "allowAnySize": true
+    },
+    {
+      "id": "custom",
+      "name": "Custom Size",
+      "allowAnySize": true
+    }
+  ]
+}
