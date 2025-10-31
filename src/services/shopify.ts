@@ -2,7 +2,7 @@
  * @fileOverview Service for interacting with the Shopify Admin API.
  */
 
-export async function getProducts(query: string) {
+export async function getProducts(query?: string) {
   const storeUrl = process.env.SHOPIFY_STORE_URL;
   const accessToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN;
 
@@ -15,7 +15,7 @@ export async function getProducts(query: string) {
   const graphqlQuery = {
     query: `
       query getProducts($query: String) {
-        products(first: 10, query: $query) {
+        products(first: 25, query: $query) {
           edges {
             node {
               id

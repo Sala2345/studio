@@ -10,14 +10,16 @@ import { z } from 'zod';
 export const getProductInformation = ai.defineTool(
   {
     name: 'getProductInformation',
-    description: 'Get information about products from the Shopify store.',
+    description: 'Get information about products from the Shopify store. Call this tool without a query to get a list of all products.',
     inputSchema: z.object({
-      query: z.string().describe('A search query to find products. Can be a product name, tag, or other criteria.'),
+      query: z.string().optional().describe('An optional search query to find specific products. Can be a product name, tag, or other criteria.'),
     }),
     outputSchema: z.any(),
   },
   async (input) => {
     console.log(`Getting product information for query: ${input.query}`);
-    return getProducts(input.query);
+    // If query is an empty string, we want to treat it as if no query was provided.
+    const query = input.query || undefined;
+    return getProducts(query);
   }
 );
