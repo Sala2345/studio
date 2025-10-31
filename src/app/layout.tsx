@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Gemini Chat',
+  title: 'SpeedPro AI',
   description: 'An AI chatbot powered by the Gemini API.',
 };
 

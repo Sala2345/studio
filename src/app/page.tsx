@@ -13,7 +13,7 @@ export default function Home() {
                 <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
                     <Gem className="h-6 w-6 text-primary" />
                 </div>
-                <CardTitle className="font-headline text-2xl font-bold text-foreground">Gemini Chat</CardTitle>
+                <CardTitle className="font-headline text-2xl font-bold text-foreground">SpeedPro AI</CardTitle>
             </div>
             <Link href="/designer" passHref>
                 <Button variant="outline">

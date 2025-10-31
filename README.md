@@ -1,4 +1,4 @@
-# Gemini Chat
+# SpeedPro AI
 
 This is a Next.js application that provides a real-time chat interface with an AI chatbot powered by the Gemini API.
 
