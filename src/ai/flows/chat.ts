@@ -34,14 +34,10 @@ const chatFlow = ai.defineFlow(
   async (input) => {
     const { history, message } = input;
 
-    const messages = [
-        ...history,
-        { role: 'user' as const, content: message },
-    ];
-
     const result = await ai.generate({
-        model: 'googleai/gemini-2.5-flash',
-        messages: messages,
+      model: 'googleai/gemini-2.5-flash',
+      prompt: message,
+      history: history,
     });
 
     const response = result.text;
