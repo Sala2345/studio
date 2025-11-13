@@ -22,6 +22,7 @@ import type { ShopifyProduct } from '@/components/product-selector';
 import { StylePreference } from '@/components/style-preference';
 import { ColorPreference } from '@/components/color-preference';
 import { InspirationLinks } from '@/components/inspiration-links';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const designSteps = [
     {
@@ -50,11 +51,38 @@ type UploadableFile = {
     error?: string;
 };
 
+const provinces = [
+  { name: 'Alberta', code: 'AB' },
+  { name: 'British Columbia', code: 'BC' },
+  { name: 'Manitoba', code: 'MB' },
+  { name: 'New Brunswick', code: 'NB' },
+  { name: 'Newfoundland and Labrador', code: 'NL' },
+  { name: 'Nova Scotia', code: 'NS' },
+  { name: 'Ontario', code: 'ON' },
+  { name: 'Prince Edward Island', code: 'PE' },
+  { name: 'Quebec', code: 'QC' },
+  { name: 'Saskatchewan', code: 'SK' },
+  { name: 'Northwest Territories', code: 'NT' },
+  { name: 'Nunavut', code: 'NU' },
+  { name: 'Yukon', code: 'YT' },
+];
+
+const cities = [
+  "Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton", "Ottawa", 
+  "Mississauga", "Winnipeg", "Hamilton", "Brampton", "Quebec City", "Surrey",
+  "Laval", "Halifax", "London", "Markham", "Vaughan", "Gatineau", "Saskatoon",
+  "Kitchener", "Windsor", "Regina", "Richmond", "Burnaby", "Oshawa"
+];
+
+
 interface FormState {
     name: string;
     email: string;
     phoneNumber: string;
-    shippingAddress: string;
+    streetAddress: string;
+    city: string;
+    province: string;
+    postalCode: string;
     selectedProduct: ShopifyProduct | null;
     selectedVariantId: string | null;
     selectedVariantTitle?: string | null;
@@ -80,7 +108,10 @@ function HireADesignerPageContent() {
         name: '',
         email: '',
         phoneNumber: '',
-        shippingAddress: '',
+        streetAddress: '',
+        city: '',
+        province: '',
+        postalCode: '',
         selectedProduct: null,
         selectedVariantId: null,
         selectedVariantTitle: null,
@@ -136,17 +167,16 @@ function HireADesignerPageContent() {
         const city = searchParams.get('city') || '';
         const province = searchParams.get('province') || '';
         const zip = searchParams.get('zip') || '';
-        const country = searchParams.get('country') || '';
-
-        const addressParts = [address1, city, province, zip, country].filter(part => part);
-        const fullAddress = addressParts.join(', ');
-
+        
         setFormState(prev => ({
             ...prev,
             email: email || prev.email,
             name: fullName || prev.name,
             phoneNumber: phone || prev.phoneNumber,
-            shippingAddress: fullAddress || prev.shippingAddress,
+            streetAddress: address1 || prev.streetAddress,
+            city: city || prev.city,
+            province: province || prev.province,
+            postalCode: zip || prev.postalCode,
             shopifyCustomerId: customerId || prev.shopifyCustomerId
         }));
 
@@ -168,6 +198,10 @@ function HireADesignerPageContent() {
         const { id, value } = e.target;
         setFormState(prev => ({ ...prev, [id]: value }));
     };
+
+    const handleSelectChange = (field: keyof FormState) => (value: string) => {
+        setFormState(prev => ({ ...prev, [field]: value }));
+    }
 
     const handleContactModeChange = useCallback((value: string) => {
         setFormState(prev => ({...prev, contactMode: value}));
@@ -350,11 +384,16 @@ function HireADesignerPageContent() {
             return;
         }
 
+        const fullShippingAddress = [formState.streetAddress, formState.city, formState.province, formState.postalCode].filter(Boolean).join(', ');
+
         const validationErrors = [];
         if (!formState.name.trim()) validationErrors.push('Please enter your name.');
         if (!formState.email.trim()) validationErrors.push('Please enter your email.');
         if (!formState.phoneNumber.trim()) validationErrors.push('Please enter your phone number.');
-        if (!formState.shippingAddress.trim()) validationErrors.push('Please enter your shipping address.');
+        if (!formState.streetAddress.trim()) validationErrors.push('Please enter your street address.');
+        if (!formState.city.trim()) validationErrors.push('Please select a city.');
+        if (!formState.province.trim()) validationErrors.push('Please select a province.');
+        if (!formState.postalCode.trim()) validationErrors.push('Please enter your postal code.');
         if (!formState.selectedProduct) validationErrors.push('Please select a product.');
         if (!formState.designDescription.trim()) validationErrors.push('Please provide a design description.');
         
@@ -429,7 +468,7 @@ function HireADesignerPageContent() {
                 email: formState.email,
                 name: formState.name,
                 phoneNumber: formState.phoneNumber,
-                shippingAddress: formState.shippingAddress,
+                shippingAddress: fullShippingAddress,
                 shopifyCustomerId: formState.shopifyCustomerId,
                 updatedAt: serverTimestamp(),
                 createdAt: serverTimestamp(),
@@ -444,6 +483,7 @@ function HireADesignerPageContent() {
                 customerName: formState.name, // ensure customerName is on the log
                 productId: formState.selectedProduct?.id,
                 productTitle: formState.selectedProduct?.title,
+                shippingAddress: fullShippingAddress,
                 fileUrls: uploadedFileUrls,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -452,7 +492,10 @@ function HireADesignerPageContent() {
             delete (finalFormState as any).selectedProduct;
             delete (finalFormState as any).name;
             delete (finalFormState as any).shopifyCustomerId;
-
+            delete (finalFormState as any).streetAddress;
+            delete (finalFormState as any).city;
+            delete (finalFormState as any).province;
+            delete (finalFormState as any).postalCode;
 
             await setDoc(designRequestRef, finalFormState);
 
@@ -539,13 +582,39 @@ function HireADesignerPageContent() {
                                     <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
                                     <Input id="email" type="email" placeholder="you@example.com" value={formState.email} onChange={handleFormChange} />
                                 </div>
-                                <div className="space-y-2">
+                                <div className="space-y-2 sm:col-span-2">
                                     <Label htmlFor="phoneNumber">Phone Number <span className="text-destructive">*</span></Label>
                                     <Input id="phoneNumber" type="tel" placeholder="(555) 123-4567" value={formState.phoneNumber} onChange={handleFormChange} />
                                 </div>
                                 <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="shippingAddress">Shipping Address <span className="text-destructive">*</span></Label>
-                                    <Textarea id="shippingAddress" placeholder="123 Main St, Anytown, USA 12345" value={formState.shippingAddress} onChange={handleFormChange} className="min-h-[100px]" />
+                                    <Label htmlFor="streetAddress">Street Address <span className="text-destructive">*</span></Label>
+                                    <Input id="streetAddress" placeholder="123 Main St" value={formState.streetAddress} onChange={handleFormChange} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
+                                     <Select value={formState.city} onValueChange={handleSelectChange('city')}>
+                                        <SelectTrigger id="city">
+                                            <SelectValue placeholder="Select a city" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {cities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="province">Province <span className="text-destructive">*</span></Label>
+                                     <Select value={formState.province} onValueChange={handleSelectChange('province')}>
+                                        <SelectTrigger id="province">
+                                            <SelectValue placeholder="Select a province" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {provinces.map(p => <SelectItem key={p.code} value={p.name}>{p.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="space-y-2 sm:col-span-2">
+                                    <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
+                                    <Input id="postalCode" placeholder="A1B 2C3" value={formState.postalCode} onChange={handleFormChange} />
                                 </div>
                             </div>
                         </div>
@@ -767,3 +836,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
