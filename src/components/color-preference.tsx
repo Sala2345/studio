@@ -51,6 +51,7 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
   const [text, setText] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [selectedColors, setSelectedColors] = useState<Color[]>([]);
+  const [customColor, setCustomColor] = useState('#ED1C24');
   const customColorInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,10 +77,9 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
     });
   };
 
-  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newColorValue = e.target.value;
-    if (newColorValue && !selectedColors.some(c => c.value === newColorValue)) {
-        setSelectedColors(prev => [...prev, { value: newColorValue, name: newColorValue }]);
+  const handleAddCustomColor = () => {
+    if (customColor && !selectedColors.some(c => c.value === customColor)) {
+      setSelectedColors(prev => [...prev, { value: customColor, name: customColor }]);
     }
   };
 
@@ -152,15 +152,16 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
                             ref={customColorInputRef}
                             id="custom-color"
                             type="color"
-                            defaultValue="#ED1C24"
-                            onChange={handleCustomColorChange}
+                            value={customColor}
+                            onChange={(e) => setCustomColor(e.target.value)}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
                          <div 
                             className="w-full h-full rounded-[5px] border-4 border-background"
-                            style={{ backgroundColor: customColorInputRef.current?.value || '#ED1C24'}}
+                            style={{ backgroundColor: customColor }}
                         ></div>
                     </div>
+                    <Button type="button" onClick={handleAddCustomColor} size="sm">Add</Button>
                 </div>
             </div>
         )}
@@ -193,4 +194,5 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
       </div>
     </div>
   );
-};
+
+    
