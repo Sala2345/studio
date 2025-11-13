@@ -6,12 +6,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import { Check } from 'lucide-react';
 
 interface Style {
   title: string;
   description: string;
-  image1?: string;
-  image2?: string;
+  image1?: string | null;
+  image2?: string | null;
 }
 
 interface StylePreferenceProps {
@@ -25,62 +26,59 @@ interface StylePreferenceProps {
   onStyleChange?: (value: string) => void;
 }
 
-export const StylePreference: React.FC<StylePreferenceProps> = ({
+export const StylePreference: React.FC<StylePreferenceProps> = ({ 
   contactLabel = "What's your preferred mode of contact?",
   contactRequired = true,
   contactSubtitle = "How would you like us to contact you?",
   styleLabel = "What style would you like?",
   styleOptionalText = "(optional)",
   styles = [],
-  onContactModeChange,
-  onStyleChange
+  onContactModeChange = () => {},
+  onStyleChange = () => {}
 }) => {
   const [contactMode, setContactMode] = useState('email');
   const [selectedStyle, setSelectedStyle] = useState('');
 
   const handleContactModeChange = (value: string) => {
     setContactMode(value);
-    if (onContactModeChange) {
-      onContactModeChange(value);
-    }
+    onContactModeChange(value);
   };
 
   const handleStyleChange = (value: string) => {
     setSelectedStyle(value);
-    if (onStyleChange) {
-      onStyleChange(value);
-    }
+    onStyleChange(value);
   };
 
   const defaultStyles: Style[] = [
     {
       title: "Clean & Minimal",
       description: "Minimal yet impactful, embracing modern simplicity with style.",
-      image1: "https://picsum.photos/seed/101/300/300",
-      image2: "https://picsum.photos/seed/102/300/300"
+      image1: "https://picsum.photos/seed/style1/300/300",
+      image2: "https://picsum.photos/seed/style2/300/300"
     },
     {
       title: "Elegant & Formal",
       description: "Elegance with a formal touch, perfect harmony of poise, grace.",
-      image1: "https://picsum.photos/seed/103/300/300",
-      image2: "https://picsum.photos/seed/104/300/300"
+      image1: "https://picsum.photos/seed/style3/300/300",
+      image2: "https://picsum.photos/seed/style4/300/300"
     },
     {
       title: "Typography",
       description: "Typography with blending elegance, merging style, clarity.",
-      image1: "https://picsum.photos/seed/105/300/300",
-      image2: "https://picsum.photos/seed/106/300/300"
+      image1: "https://picsum.photos/seed/style5/300/300",
+      image2: "https://picsum.photos/seed/style6/300/300"
     },
     {
       title: "Fun & Whimsical",
       description: "Playful & Lively, where creativity meets carefree charm.",
-      image1: "https://picsum.photos/seed/107/300/300",
-      image2: "https://picsum.photos/seed/108/300/300"
+      image1: "https://picsum.photos/seed/style7/300/300",
+      image2: "https://picsum.photos/seed/style8/300/300"
     },
     {
       title: "Let The Expert Decide",
       description: "Trust the expert to choose the best, tailored to your needs with",
-      image1: "https://picsum.photos/seed/109/300/300"
+      image1: "https://picsum.photos/seed/style9/300/300",
+      image2: null,
     }
   ];
 
@@ -89,103 +87,150 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
   return (
     <div className="font-sans">
       {/* Contact Mode Section */}
-      <div className="mb-10">
-        <h2 className="text-lg font-medium text-gray-800 mb-2">
+      <div className="mb-12">
+        <h2 className="text-[17px] font-semibold text-gray-800 mb-2">
           {contactLabel}
           {contactRequired && <span className="text-destructive ml-1">*</span>}
         </h2>
-        <p className="text-sm text-gray-600 mb-4">{contactSubtitle}</p>
+        <p className="text-sm text-muted-foreground mb-5">{contactSubtitle}</p>
 
         <RadioGroup 
           value={contactMode} 
           onValueChange={handleContactModeChange}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-[680px]"
         >
           <div className="relative">
-            <RadioGroupItem value="email" id="contact-email-style" className="sr-only peer" />
-            <Label
-              htmlFor="contact-email-style"
-              className="flex items-center gap-3 p-5 border-2 rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
+            <RadioGroupItem 
+              value="email" 
+              id="contact-email" 
+              className="sr-only peer"
+            />
+            <Label 
+              htmlFor="contact-email"
+              className={cn(
+                "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
+                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-muted-foreground"
+              )}
             >
-              <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
-                <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
+              <div className={cn(
+                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200",
+                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border"
+              )}>
+                <div className={cn(
+                  "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[8px] h-[8px] bg-primary rounded-full transition-transform scale-0",
+                  "peer-data-[state=checked]:scale-100"
+                  )} />
               </div>
-              <span className="text-base font-medium text-foreground">Email</span>
+              <span className="text-sm font-normal text-foreground">Email</span>
             </Label>
           </div>
+
           <div className="relative">
-            <RadioGroupItem value="call" id="contact-call-style" className="sr-only peer" />
-            <Label
-              htmlFor="contact-call-style"
-              className="flex items-center gap-3 p-5 border-2 rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
+            <RadioGroupItem 
+              value="call" 
+              id="contact-call" 
+              className="sr-only peer"
+            />
+            <Label 
+              htmlFor="contact-call"
+               className={cn(
+                "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
+                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-muted-foreground"
+              )}
             >
-              <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
-                <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
+              <div className={cn(
+                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200",
+                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border"
+              )}>
+                 <div className={cn(
+                  "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[8px] h-[8px] bg-primary rounded-full transition-transform scale-0",
+                  "peer-data-[state=checked]:scale-100"
+                  )} />
               </div>
-              <span className="text-base font-medium text-foreground">Call</span>
+              <span className="text-sm font-normal text-foreground">Call</span>
             </Label>
           </div>
         </RadioGroup>
       </div>
 
       {/* Style Selection Section */}
-      <div className="mt-10">
-        <h2 className="text-lg font-medium text-gray-800 mb-2">
+      <div>
+        <h2 className="text-[17px] font-semibold text-gray-800 mb-8">
           {styleLabel}{' '}
-          <span className="text-base text-gray-500 font-normal">{styleOptionalText}</span>
+          <span className="text-sm text-muted-foreground font-normal">{styleOptionalText}</span>
         </h2>
 
         <RadioGroup 
             value={selectedStyle}
             onValueChange={handleStyleChange}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mt-6"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5"
         >
           {styleOptions.map((style, index) => {
             const styleId = style.title.toLowerCase().replace(/\s+/g, '-');
+            const isSelected = selectedStyle === styleId;
+
             return (
-              <div key={index}>
-                <RadioGroupItem value={styleId} id={`style-${styleId}`} className="sr-only peer" />
-                <Label
-                  htmlFor={`style-${styleId}`}
-                  className="block cursor-pointer rounded-xl border-2 bg-background transition-all hover:border-muted-foreground hover:-translate-y-0.5 hover:shadow-md peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 overflow-hidden"
-                >
-                  <div className="aspect-square bg-gray-100 p-4">
-                    <div className="flex h-full w-full items-stretch justify-center gap-2">
-                      {style.image1 && (
-                        <div className={cn("relative h-full", style.image2 ? 'w-1/2' : 'w-full')}>
-                            <Image
-                                src={style.image1}
-                                alt={`${style.title} preview 1`}
-                                fill
-                                loading="lazy"
-                                className="rounded-md object-cover shadow-sm"
-                            />
-                        </div>
-                      )}
-                      {style.image2 && (
-                        <div className="relative h-full w-1/2">
-                            <Image
-                                src={style.image2}
-                                alt={`${style.title} preview 2`}
-                                fill
-                                loading="lazy"
-                                className="rounded-md object-cover shadow-sm"
-                            />
-                        </div>
-                      )}
-                    </div>
+              <Label
+                key={index}
+                htmlFor={styleId}
+                className={cn(
+                    "group relative border-2 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 bg-background",
+                    isSelected ? 'border-primary shadow-lg' : 'border-border hover:border-muted-foreground hover:shadow-md'
+                )}
+              >
+                <RadioGroupItem
+                  id={styleId}
+                  value={styleId}
+                  className="absolute opacity-0"
+                />
+                
+                <div className="aspect-square p-5 flex items-center justify-center bg-muted/30 relative overflow-hidden transition-all duration-300 group-hover:bg-muted/60">
+                  <div className="w-full h-full flex items-center justify-center gap-3" style={{perspective: '1000px'}}>
+                    {style.image1 && (
+                      <div className={cn("h-full transition-all duration-300 group-hover:-rotate-2 group-hover:scale-105", style.image2 ? 'w-[47%]' : 'w-full')} style={{ transformStyle: 'preserve-3d' }}>
+                        <Image
+                          src={style.image1}
+                          alt={`${style.title} preview 1`}
+                          width={300}
+                          height={300}
+                          className="w-full h-full object-cover rounded-xl shadow-lg"
+                        />
+                      </div>
+                    )}
+                    {style.image2 && (
+                       <div className="w-[47%] h-full transition-all duration-300 group-hover:rotate-2 group-hover:scale-105" style={{ transformStyle: 'preserve-3d' }}>
+                        <Image
+                          src={style.image2}
+                          alt={`${style.title} preview 2`}
+                           width={300}
+                          height={300}
+                          className="w-full h-full object-cover rounded-xl shadow-lg"
+                        />
+                      </div>
+                    )}
+                    {!style.image1 && !style.image2 && (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                        No preview
+                      </div>
+                    )}
                   </div>
-                  <div className="p-4">
-                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
-                            <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
-                        </div>
-                        <h3 className="font-semibold text-base text-gray-800">{style.title}</h3>
-                    </div>
-                    <p className="text-sm text-gray-600 leading-snug">{style.description}</p>
+                </div>
+
+                <div className="p-5 pt-4 bg-background">
+                  <h3 className="text-sm font-semibold text-foreground mb-2 leading-snug">
+                    {style.title}
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {style.description}
+                  </p>
+                </div>
+
+                {isSelected && (
+                  <div className="absolute top-3 right-3 w-7 h-7 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                    <Check className="w-4 h-4 text-primary-foreground" />
                   </div>
-                </Label>
-              </div>
+                )}
+              </Label>
             );
           })}
         </RadioGroup>
@@ -193,3 +238,5 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
     </div>
   );
 };
+
+    
