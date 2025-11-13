@@ -72,7 +72,7 @@ export async function getProducts(query?: string) {
                 url
                 altText
               }
-              variants(first: 10) {
+              variants(first: 20) {
                 edges {
                   node {
                     id
@@ -155,7 +155,7 @@ export async function updateProduct(productId: string, productInput: any) {
 }
 
 
-export async function createDraftOrder(customerId: string, variantId: string, customAttributes: {key: string, value: string}[]) {
+export async function createDraftOrder(customerId: string, variantId: string, customAttributes: {key: string, value: string}[], note: string) {
   const graphqlQuery = {
     query: `
       mutation draftOrderCreate($input: DraftOrderInput!) {
@@ -178,9 +178,55 @@ export async function createDraftOrder(customerId: string, variantId: string, cu
           variantId: variantId,
           quantity: 1
         }],
-        customAttributes: customAttributes
+        customAttributes: customAttributes,
+        note: note,
+        paymentTerms: {
+          paymentTermsType: "NET",
+          paymentSchedules: [
+            {
+              issueDate: new Date().toISOString(),
+              dueInDays: 0,
+            },
+          ],
+        },
       }
     }
   };
   return shopifyFetch(graphqlQuery);
+}
+
+export async function findCustomerByEmail(email: string) {
+  const graphqlQuery = {
+    query: `
+      query findCustomerByEmail($query: String!) {
+        customers(first: 1, query: $query) {
+          edges {
+            node {
+              id
+              firstName
+              lastName
+              email
+              phone
+              defaultAddress {
+                address1
+                address2
+                city
+                provinceCode
+                countryCode
+                zip
+              }
+            }
+          }
+        }
+      }
+    `,
+    variables: {
+      query: `email:${email}`
+    }
+  };
+  const data = await shopifyFetch(graphqlQuery);
+  if (data?.customers?.edges?.length > 0) {
+    return data.customers.edges[0].node;
+  }
+  return null;
 }

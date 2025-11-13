@@ -1,7 +1,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useCollection, useUser, useMemoFirebase } from '@/firebase';
 import { collectionGroup, query, orderBy, where, Firestore } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
@@ -11,20 +11,24 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShoppingCart } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/ui/accordion"
+} from "@/components/ui/accordion";
+import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
+import { useToast } from '@/hooks/use-toast';
 
 interface DesignRequest {
   id: string;
   customerName: string;
   email: string;
   phoneNumber?: string;
+  productId: string;
   productTitle: string;
+  selectedVariantId: string;
   selectedVariantTitle?: string;
   designDescription: string;
   contactMode: string;
@@ -41,21 +45,47 @@ interface DesignRequest {
 function LogAllFormWorksPage() {
   const firestore = useFirestore() as Firestore;
   const { user, isUserLoading } = useUser();
+  const [creatingOrderId, setCreatingOrderId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const designRequestsQuery = useMemoFirebase(
     () =>
-      firestore && user // Ensure user is logged in before creating the query
+      firestore && user
         ? query(
             collectionGroup(firestore, 'designRequests'),
             orderBy('createdAt', 'desc')
           )
         : null,
-    [firestore, user] // Add user to dependency array
+    [firestore, user]
   );
 
   const { data: designRequests, isLoading: isLoadingRequests } = useCollection<DesignRequest>(designRequestsQuery);
 
   const isLoading = isUserLoading || isLoadingRequests;
+
+  const handleCreateOrder = async (request: DesignRequest) => {
+    setCreatingOrderId(request.id);
+    try {
+      const result = await createOrderFromLogFlow({ log: request });
+      if (result.success && result.invoiceUrl) {
+        toast({
+          title: 'Draft Order Created!',
+          description: `Order ${result.orderId} created. You can view the invoice.`,
+          action: <Button asChild><a href={result.invoiceUrl} target="_blank" rel="noopener noreferrer">View Invoice</a></Button>,
+        });
+      } else {
+        throw new Error(result.error || 'An unknown error occurred.');
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Create Order',
+        description: error.message,
+      });
+    } finally {
+      setCreatingOrderId(null);
+    }
+  };
 
   if (!isUserLoading && !user) {
     return (
@@ -91,14 +121,16 @@ function LogAllFormWorksPage() {
                 <p className="ml-4">Loading design logs...</p>
               </div>
             ) : designRequests && designRequests.length > 0 ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[180px]">Date Submitted</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Product</TableHead>
-                    <TableHead>Description</TableHead>
+                    <TableHead className="w-[120px]">Description</TableHead>
                     <TableHead className="text-center w-[100px]">Details</TableHead>
+                    <TableHead className="text-center w-[140px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -125,11 +157,11 @@ function LogAllFormWorksPage() {
                       <TableCell className="max-w-xs truncate">{request.designDescription}</TableCell>
                       <TableCell className="text-center">
                         <Accordion type="single" collapsible className="w-full">
-                            <AccordionItem value="item-1">
+                            <AccordionItem value="item-1" className="border-b-0">
                                 <AccordionTrigger>
                                      <Button size="sm" variant="outline">View All</Button>
                                 </AccordionTrigger>
-                                <AccordionContent className="p-4 bg-gray-50 rounded-md mt-2 text-left">
+                                <AccordionContent className="p-4 bg-gray-50 rounded-md mt-2 text-left absolute z-10 min-w-[300px] shadow-lg border">
                                     <div className="space-y-4">
                                         <div>
                                             <h4 className="font-semibold">Contact</h4>
@@ -145,7 +177,7 @@ function LogAllFormWorksPage() {
                                             <div>
                                                 <h4 className="font-semibold">Inspiration Links</h4>
                                                 <ul className="list-disc list-inside">
-                                                    {request.inspirationLinks.map((link, index) => <li key={index}><a href={link} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">Link {index+1}</a></li>)}
+                                                    {request.inspirationLinks.map((link, index) => link && <li key={index}><a href={link} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">Link {index+1}</a></li>)}
                                                 </ul>
                                             </div>
                                         )}
@@ -162,10 +194,25 @@ function LogAllFormWorksPage() {
                             </AccordionItem>
                         </Accordion>
                       </TableCell>
+                       <TableCell className="text-center">
+                        <Button
+                          size="sm"
+                          onClick={() => handleCreateOrder(request)}
+                          disabled={creatingOrderId === request.id}
+                        >
+                          {creatingOrderId === request.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                          )}
+                          Create Order
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <div className="text-center py-20">
                 <p className="text-lg text-muted-foreground">No design requests have been submitted yet.</p>
