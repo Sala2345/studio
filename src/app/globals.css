@@ -21,8 +21,8 @@
     --border-hover: 0 0% 60%;        /* #999 */
     
     /* Accent Colors */
-    --accent-primary: 14 100% 60%;   /* #ff6b35 - Orange */
-    --accent-primary-hover: 14 100% 97%; /* #fff5f2 */
+    --accent-primary: 358 85% 52%;   /* #ED1C24 - Red */
+    --accent-primary-hover: 358 85% 97%; /* Lighter red for hover */
     --accent-danger: 354 70% 54%;    /* #e63946 - Red */
     
     /* Background Colors */
@@ -38,7 +38,7 @@
     --card-foreground: 0 0% 18%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 18%;
-    --primary: 14 100% 60%;
+    --primary: 358 85% 52%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 18%;
@@ -71,7 +71,7 @@
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
-    --primary: 14 100% 60%;
+    --primary: 358 85% 52%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 98%;
@@ -197,8 +197,8 @@
   /* Primary Button (Orange) */
   .btn-primary {
     @apply inline-flex items-center gap-2 px-6 py-3 bg-white;
-    @apply border-2 border-[#ff6b35] rounded-md;
-    @apply text-[15px] text-[#ff6b35] font-medium;
+    @apply border-2 border-[#ED1C24] rounded-md;
+    @apply text-[15px] text-[#ED1C24] font-medium;
     @apply cursor-pointer transition-all duration-200;
     @apply hover:bg-[#fff5f2];
   }
@@ -224,7 +224,7 @@
   }
 
   .color-swatch.selected {
-    @apply border-[#ff6b35] border-[3px];
+    @apply border-[#ED1C24] border-[3px];
   }
 
   .color-swatch.selected::after {
@@ -297,7 +297,7 @@
   }
 
   .card-highlighted {
-    @apply border-[#ff6b35] shadow-lg;
+    @apply border-[#ED1C24] shadow-lg;
   }
 
   /* Panel/Container */
@@ -352,15 +352,15 @@
 
   /* Accent Color Utilities */
   .text-accent {
-    color: #ff6b35;
+    color: #ED1C24;
   }
 
   .bg-accent {
-    background-color: #ff6b35;
+    background-color: #ED1C24;
   }
 
   .border-accent {
-    border-color: #ff6b35;
+    border-color: #ED1C24;
   }
 
   .bg-accent-hover {
@@ -460,11 +460,11 @@
 
 /* Selection Styling */
 ::selection {
-  background: rgba(255, 107, 53, 0.2);
+  background: rgba(237, 28, 36, 0.2);
   color: #2d2d2d;
 }
 
 ::-moz-selection {
-  background: rgba(255, 107, 53, 0.2);
+  background: rgba(237, 28, 36, 0.2);
   color: #2d2d2d;
 }
