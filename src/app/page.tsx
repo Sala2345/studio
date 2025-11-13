@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatInterface } from "@/components/chat/chat-interface";
-import { Gem, Brush } from "lucide-react";
+import { Gem, Brush, PencilRuler } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -15,12 +15,20 @@ export default function Home() {
                 </div>
                 <CardTitle className="font-headline text-2xl font-bold text-foreground">SpeedPro AI</CardTitle>
             </div>
-            <Link href="/designer" passHref>
-                <Button variant="outline">
-                    <Brush className="mr-2 h-4 w-4" />
-                    AI Designer
-                </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+                <Link href="/designer" passHref>
+                    <Button variant="outline">
+                        <Brush className="mr-2 h-4 w-4" />
+                        AI Designer
+                    </Button>
+                </Link>
+                 <Link href="/hire-a-designer" passHref>
+                    <Button variant="outline">
+                        <PencilRuler className="mr-2 h-4 w-4" />
+                        Hire a Designer
+                    </Button>
+                </Link>
+            </div>
         </CardHeader>
         <ChatInterface />
       </Card>
