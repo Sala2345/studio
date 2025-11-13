@@ -4,6 +4,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Plus, Minus, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from './ui/input';
