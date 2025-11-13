@@ -89,31 +89,52 @@ export default function DesignerPage() {
 
   const generateResizedImage = (): string | null => {
     const canvas = canvasRef.current;
+    if (!canvas || !generatedDesign || !width || !height) return null;
+
     const img = document.createElement('img');
-    img.src = generatedDesign!;
+    img.src = generatedDesign;
 
-    if (canvas && generatedDesign) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const w = Number(width);
-        const h = Number(height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
 
-        // Set canvas dimensions
-        canvas.width = w * 96; // Assuming 96 DPI for print
-        canvas.height = h * 96;
+    const targetWidth = Number(width) * 96; // Assuming 96 DPI for print
+    const targetHeight = Number(height) * 96;
+    const targetAspect = targetWidth / targetHeight;
+    
+    const imageAspect = img.naturalWidth / img.naturalHeight;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL('image/png');
-      }
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    
+    ctx.clearRect(0, 0, targetWidth, targetHeight);
+
+    let sx, sy, sWidth, sHeight;
+
+    if (imageAspect > targetAspect) {
+        // Image is wider than target
+        sHeight = img.naturalHeight;
+        sWidth = sHeight * targetAspect;
+        sx = (img.naturalWidth - sWidth) / 2;
+        sy = 0;
+    } else {
+        // Image is taller than target
+        sWidth = img.naturalWidth;
+        sHeight = sWidth / targetAspect;
+        sx = 0;
+        sy = (img.naturalHeight - sHeight) / 2;
     }
-    return null;
-  };
+
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+    
+    return canvas.toDataURL('image/png');
+};
 
   const handleTemplateSelect = (template: DesignTemplate) => {
     setSelectedTemplate(template);
     setWidth(template.defaultWidth || "");
     setHeight(template.defaultHeight || "");
+    setGeneratedDesign(null);
+    setIsEditing(false);
   };
 
   return (
@@ -214,7 +235,7 @@ export default function DesignerPage() {
                       <Image src={generatedDesign} alt="Generated design" fill className="object-contain" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                      <Button onClick={() => handleDownload(generatedDesign, 'generated-design.png')} variant="secondary">
+                      <Button onClick={() => handleDownload(generatedDesign, 'generated-design-original.png')} variant="secondary">
                           <Download className="mr-2"/> Download Original
                       </Button>
                       <Button onClick={() => setIsEditing(true)} variant="outline">
@@ -267,5 +288,3 @@ export default function DesignerPage() {
     </div>
   );
 }
-
-    
