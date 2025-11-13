@@ -1,11 +1,14 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -44,17 +47,21 @@ type UploadableFile = {
 };
 
 interface FormState {
+    name: string;
+    email: string;
+    phoneNumber: string;
     selectedProduct: { id: string, variantId: string, title: string } | null;
     designDescription: string;
     contactMode: string;
     designStyle: string;
     colors: string;
     inspirationLinks: string[];
+    shopifyCustomerId?: string;
 }
 
 
-export default function HireADesignerPage() {
-    const [description, setDescription] = useState('');
+function HireADesignerPageContent() {
+    const searchParams = useSearchParams();
     const [recordings, setRecordings] = useState<Recording[]>([]);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
@@ -64,6 +71,9 @@ export default function HireADesignerPage() {
     const [isDragging, setIsDragging] = useState(false);
 
     const [formState, setFormState] = useState<FormState>({
+        name: '',
+        email: '',
+        phoneNumber: '',
         selectedProduct: null, // Example product
         designDescription: '',
         contactMode: 'email',
@@ -87,12 +97,42 @@ export default function HireADesignerPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        if (e.target.value.length <= 500) {
-            setDescription(e.target.value);
-            setFormState(prev => ({ ...prev, designDescription: e.target.value }));
+    useEffect(() => {
+        // Extract customer data from URL parameters
+        const email = searchParams.get('email') || '';
+        const firstName = searchParams.get('firstName') || '';
+        const lastName = searchParams.get('lastName') || '';
+        const phone = searchParams.get('phone') || '';
+        const customerId = searchParams.get('customerId') || '';
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        setFormState(prev => ({
+            ...prev,
+            email: email || prev.email,
+            name: fullName || prev.name,
+            phoneNumber: phone || prev.phoneNumber,
+            shopifyCustomerId: customerId || prev.shopifyCustomerId
+        }));
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+     useEffect(() => {
+        if (user) {
+            setFormState(prev => ({
+                ...prev,
+                name: prev.name || user.displayName || '',
+                email: prev.email || user.email || '',
+                phoneNumber: prev.phoneNumber || user.phoneNumber || ''
+            }));
         }
+    }, [user]);
+
+    const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const { id, value } = e.target;
+        setFormState(prev => ({ ...prev, [id]: value }));
     };
+
 
     // Voice note functions
     const startRecording = async () => {
@@ -331,6 +371,19 @@ export default function HireADesignerPage() {
             });
 
             const uploadedFileUrls = await Promise.all(fileUploadPromises);
+            
+            // Create/update customer profile
+            const customerRef = doc(firestore, 'customers', user.uid);
+            const customerData = {
+                id: user.uid,
+                email: formState.email || user.email,
+                name: formState.name || user.displayName,
+                phoneNumber: formState.phoneNumber || user.phoneNumber,
+                shopifyCustomerId: formState.shopifyCustomerId,
+                updatedAt: serverTimestamp(),
+            };
+            await setDoc(customerRef, customerData, { merge: true });
+
 
             // 2. Create Firestore document
             const designRequestRef = doc(firestore, 'customers', user.uid, 'designRequests', designRequestId);
@@ -338,6 +391,7 @@ export default function HireADesignerPage() {
                 ...formState,
                 productId: formState.selectedProduct?.id,
                 productTitle: formState.selectedProduct?.title,
+                customerName: formState.name || user.displayName,
                 id: designRequestId,
                 customerId: user.uid,
                 fileUrls: uploadedFileUrls,
@@ -350,15 +404,15 @@ export default function HireADesignerPage() {
             // 3. Create Shopify Draft Order
             // This assumes user.uid can be mapped to a Shopify Customer Numeric ID.
             // In a real app, you'd look up the shopifyCustomerId from the /customers/{uid} document.
-            // For this example, we'll extract a numeric ID if present in the UID.
-            const shopifyCustomerId = user.uid.replace(/[^0-9]/g, ''); 
-            if (!shopifyCustomerId) {
-                throw new Error("Could not determine a numeric Shopify customer ID from your user account.");
+            // For this example, we'll use the one from the URL param if available
+            const shopifyCustomerIdForOrder = formState.shopifyCustomerId?.replace(/[^0-9]/g, '');
+            if (!shopifyCustomerIdForOrder) {
+                throw new Error("Could not determine a numeric Shopify customer ID from your user account or URL.");
             }
 
             const draftOrderResult = await createDraftOrderFlow({
                 designRequestId,
-                customerId: shopifyCustomerId, 
+                customerId: shopifyCustomerIdForOrder, 
                 variantId: formState.selectedProduct!.variantId,
                 fileUrls: uploadedFileUrls,
             });
@@ -425,9 +479,28 @@ export default function HireADesignerPage() {
                             ))}
                         </div>
 
+                        {/* Contact Info Section */}
+                        <div className="mb-10">
+                            <h2 className="text-lg font-medium text-gray-800 mb-4">Your Contact Information</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Name</Label>
+                                    <Input id="name" type="text" placeholder="Your full name" value={formState.name} onChange={handleFormChange} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email</Label>
+                                    <Input id="email" type="email" placeholder="you@example.com" value={formState.email} onChange={handleFormChange} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+                                    <Input id="phoneNumber" type="tel" placeholder="(555) 123-4567" value={formState.phoneNumber} onChange={handleFormChange} />
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Form Section */}
                         <div className="mt-10">
-                            <Label htmlFor="design-description" className="text-lg font-medium text-gray-800 mb-2 block">
+                            <Label htmlFor="designDescription" className="text-lg font-medium text-gray-800 mb-2 block">
                                 Describe your design in a few words
                                 <span className="text-red-600 ml-1">*</span>
                             </Label>
@@ -436,15 +509,15 @@ export default function HireADesignerPage() {
                             </p>
 
                             <Textarea
-                                id="design-description"
+                                id="designDescription"
                                 placeholder="Start typing here"
-                                value={description}
-                                onChange={handleDescriptionChange}
+                                value={formState.designDescription}
+                                onChange={(e) => setFormState(prev => ({ ...prev, designDescription: e.target.value }))}
                                 className="min-h-[150px] text-base"
                                 maxLength={500}
                             />
                             <div className="text-right text-sm text-gray-600 mt-2">
-                                {description.length}/500
+                                {formState.designDescription.length}/500
                             </div>
 
                             <div className="mt-4">
@@ -493,9 +566,9 @@ export default function HireADesignerPage() {
                         
                         {/* File Upload Section */}
                         <div className="mt-10">
-                            <h2 className="text-lg font-medium text-gray-800 mb-2 block">
+                            <Label className="text-lg font-medium text-gray-800 mb-2 block">
                                 What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
-                            </h2>
+                            </Label>
                             <p className="text-sm text-gray-600 mb-4">
                                 Add logos and images, as well as any references you'd like us to look at.
                             </p>
@@ -616,4 +689,13 @@ export default function HireADesignerPage() {
             </div>
         </div>
     );
+}
+
+
+export default function HireADesignerPage() {
+    return (
+        <React.Suspense fallback={<div>Loading...</div>}>
+            <HireADesignerPageContent />
+        </React.Suspense>
+    )
 }
