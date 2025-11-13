@@ -194,5 +194,4 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
       </div>
     </div>
   );
-
-    
+};
