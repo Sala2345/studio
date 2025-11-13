@@ -157,17 +157,12 @@ export default function DesignerPage() {
                   key={template.id} 
                   onClick={() => handleTemplateSelect(template)}
                   className={cn(
-                    "cursor-pointer transition-all hover:shadow-lg",
+                    "cursor-pointer transition-all hover:shadow-lg bg-black text-white",
                     selectedTemplate?.id === template.id ? "ring-2 ring-primary ring-offset-2" : "ring-1 ring-border"
                   )}
                 >
-                  <CardContent className="p-4 flex flex-col items-center justify-center">
-                    {template.imageUrl && (
-                       <div className="relative w-full h-32 mb-2 rounded-md overflow-hidden">
-                        <Image src={template.imageUrl} alt={template.name} fill className="object-contain" data-ai-hint={template.imageHint} />
-                       </div>
-                    )}
-                    <p className="font-semibold text-center mt-2">{template.name}</p>
+                  <CardContent className="p-4 flex flex-col items-center justify-center h-40">
+                    <p className="font-semibold text-center uppercase tracking-wider">{template.name}</p>
                   </CardContent>
                 </Card>
               ))}
