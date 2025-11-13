@@ -16,7 +16,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Progress } from '@/components/ui/progress';
-import { createDraftOrderFlow } from '@/ai/flows/create-draft-order';
+import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
 import { StylePreference } from '@/components/style-preference';
@@ -110,6 +110,9 @@ function HireADesignerPageContent() {
         setFormState(prev => ({
             ...prev, 
             selectedProduct: product,
+            // Automatically select the first variant when a product is chosen
+            selectedVariantId: product?.variants.edges[0]?.node.id || null,
+            selectedVariantTitle: product?.variants.edges[0]?.node.title || null,
         }));
     }, []);
 
@@ -429,33 +432,33 @@ function HireADesignerPageContent() {
                 shippingAddress: formState.shippingAddress,
                 shopifyCustomerId: formState.shopifyCustomerId,
                 updatedAt: serverTimestamp(),
+                createdAt: serverTimestamp(),
             };
             await setDoc(customerRef, customerData, { merge: true });
 
             const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
             const finalFormState = {
                 ...formState,
-                productId: formState.selectedProduct?.id,
-                productTitle: formState.selectedProduct?.title,
-                customerName: formState.name,
                 id: designRequestId,
                 customerId: customerId,
+                customerName: formState.name, // ensure customerName is on the log
+                productId: formState.selectedProduct?.id,
+                productTitle: formState.selectedProduct?.title,
                 fileUrls: uploadedFileUrls,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
+            // Clean up data for Firestore
             delete (finalFormState as any).selectedProduct;
+            delete (finalFormState as any).name;
+            delete (finalFormState as any).shopifyCustomerId;
+
 
             await setDoc(designRequestRef, finalFormState);
 
-            const shopifyCustomerIdForOrder = formState.shopifyCustomerId?.replace(/[^0-9]/g, '');
-            if (shopifyCustomerIdForOrder && formState.selectedVariantId) {
-                const draftOrderResult = await createDraftOrderFlow({
-                    designRequestId,
-                    customerId: shopifyCustomerIdForOrder, 
-                    variantId: formState.selectedVariantId,
-                    fileUrls: uploadedFileUrls,
-                });
+            // Now, automatically create the Shopify draft order
+            if (formState.selectedVariantId) {
+                const draftOrderResult = await createOrderFromLogFlow({ log: finalFormState as any });
 
                 if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
                     console.warn("Could not create Shopify draft order:", draftOrderResult.error);
@@ -464,7 +467,7 @@ function HireADesignerPageContent() {
                     setInvoiceUrl(draftOrderResult.invoiceUrl);
                 }
             } else {
-                 console.warn("Skipping Shopify draft order: Missing Shopify Customer ID or Product Variant ID.");
+                 console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
             }
             
             setSubmissionSuccess(true);
@@ -486,7 +489,7 @@ function HireADesignerPageContent() {
                     <Card className="p-6 md:p-12 text-center bg-green-50 border-2 border-green-500">
                         <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
-                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted and logged.</p>
+                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted and a draft order has been created.</p>
                         <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
                         {invoiceUrl && (
                             <div className="mt-8">
@@ -727,7 +730,7 @@ function HireADesignerPageContent() {
                                         <div className="summary-value capitalize">{formState.contactMode || 'Not selected'}</div>
                                     </div>
                                     <div className="summary-item">
-                                        <div className={cn("summary-icon", uploadedFiles.length > 0 ? 'complete' : 'incomplete' )}>
+                                        <div className={cn("summary-icon", (uploadedFiles.length + recordings.length) > 0 ? 'complete' : 'incomplete' )}>
                                             <CheckCircle />
                                         </div>
                                         <div className="summary-label">Files:</div>
@@ -764,7 +767,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
-
-    

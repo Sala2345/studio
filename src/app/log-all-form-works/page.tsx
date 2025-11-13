@@ -11,14 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Loader2, ShoppingCart } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
 import { useToast } from '@/hooks/use-toast';
 
 interface DesignRequest {
@@ -46,7 +45,6 @@ interface DesignRequest {
 function LogAllFormWorksPage() {
   const firestore = useFirestore() as Firestore;
   const { user, isUserLoading } = useUser();
-  const [creatingOrderId, setCreatingOrderId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const designRequestsQuery = useMemoFirebase(
@@ -64,29 +62,6 @@ function LogAllFormWorksPage() {
 
   const isLoading = isUserLoading || isLoadingRequests;
 
-  const handleCreateOrder = async (request: DesignRequest) => {
-    setCreatingOrderId(request.id);
-    try {
-      const result = await createOrderFromLogFlow({ log: request });
-      if (result.success && result.invoiceUrl) {
-        toast({
-          title: 'Draft Order Created!',
-          description: `Order ${result.orderId} created. You can view the invoice.`,
-          action: <Button asChild><a href={result.invoiceUrl} target="_blank" rel="noopener noreferrer">View Invoice</a></Button>,
-        });
-      } else {
-        throw new Error(result.error || 'An unknown error occurred.');
-      }
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to Create Order',
-        description: error.message,
-      });
-    } finally {
-      setCreatingOrderId(null);
-    }
-  };
 
   if (!isUserLoading && !user) {
     return (
@@ -131,7 +106,6 @@ function LogAllFormWorksPage() {
                     <TableHead>Product</TableHead>
                     <TableHead className="w-[120px]">Description</TableHead>
                     <TableHead className="text-center w-[100px]">Details</TableHead>
-                    <TableHead className="text-center w-[140px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -197,20 +171,6 @@ function LogAllFormWorksPage() {
                             </AccordionItem>
                         </Accordion>
                       </TableCell>
-                       <TableCell className="text-center">
-                        <Button
-                          size="sm"
-                          onClick={() => handleCreateOrder(request)}
-                          disabled={creatingOrderId === request.id}
-                        >
-                          {creatingOrderId === request.id ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <ShoppingCart className="mr-2 h-4 w-4" />
-                          )}
-                          Create Order
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -229,5 +189,3 @@ function LogAllFormWorksPage() {
 }
 
 export default LogAllFormWorksPage;
-
-    
