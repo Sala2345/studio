@@ -22,7 +22,7 @@
     
     /* Accent Colors */
     --accent-primary: 358 85% 52%;   /* #ED1C24 - Red */
-    --accent-primary-hover: 358 85% 97%; /* Lighter red for hover */
+    --accent-primary-hover: 358 85% 52%; /* #ED1C24 - Red for hover */
     --accent-danger: 354 70% 54%;    /* #e63946 - Red */
     
     /* Background Colors */
@@ -200,7 +200,7 @@
     @apply border-2 border-[#ED1C24] rounded-md;
     @apply text-[15px] text-[#ED1C24] font-medium;
     @apply cursor-pointer transition-all duration-200;
-    @apply hover:bg-[#fff5f2];
+    @apply hover:bg-primary/5;
   }
 
   .btn-primary:active {
@@ -364,7 +364,7 @@
   }
 
   .bg-accent-hover {
-    background-color: #fff5f2;
+    background-color: hsl(var(--accent-primary-hover));
   }
 
   /* Danger Color Utilities */
@@ -468,3 +468,5 @@
   background: rgba(237, 28, 36, 0.2);
   color: #2d2d2d;
 }
+
+    
