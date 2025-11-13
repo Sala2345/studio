@@ -424,65 +424,6 @@ export default function HireADesignerPage() {
                                 </div>
                             ))}
                         </div>
-                        
-                        {/* File Upload Section */}
-                        <div className="mt-10">
-                            <h2 className="text-lg font-medium text-gray-800 mb-2 block">
-                                What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
-                            </h2>
-                            <p className="text-sm text-gray-600 mb-4">
-                                Add logos and images, as well as any references you'd like us to look at.
-                            </p>
-                            <div className="max-w-3xl">
-                                <div
-                                    className={cn(
-                                        "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors",
-                                        isDragging ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground"
-                                    )}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    onDragEnter={handleDragEnter}
-                                    onDragOver={handleDragOver}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
-                                >
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        multiple
-                                        className="hidden"
-                                        onChange={(e) => handleFileSelect(e.target.files)}
-                                        accept=".pdf,.png,.jpeg,.jpg,.ai,.psd,.tif,.cdr,.eps,.gif,.doc,.docx,.bpm,.webm,.m4a,.mp3"
-                                    />
-                                    <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-                                    <p className="mt-4 text-foreground">Click to browse, or drag and drop a file here</p>
-                                    <p className="mt-2 text-xs text-muted-foreground">Max file size 400MB. Supported types: pdf, png, jpg, ai, psd, etc.</p>
-                                </div>
-                                
-                                {uploadedFiles.length > 0 && (
-                                    <div className="mt-6">
-                                        <h3 className="font-semibold mb-2">Uploaded Files:</h3>
-                                        <div className="space-y-2">
-                                            {uploadedFiles.map(f => (
-                                                <Card key={f.id} className="flex items-center p-3 gap-3">
-                                                    <FileIcon className="h-8 w-8 text-muted-foreground" />
-                                                    <div className="flex-1 overflow-hidden">
-                                                        <p className="text-sm font-medium truncate">{f.file.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{formatFileSize(f.file.size)}</p>
-                                                        {isSubmitting && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-1" />}
-                                                        {f.error && <p className="text-xs text-destructive mt-1">{f.error}</p>}
-                                                    </div>
-                                                    {!isSubmitting && (
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFile(f.id)}>
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
 
                         {/* Form Section */}
                         <div className="mt-10">
@@ -545,6 +486,65 @@ export default function HireADesignerPage() {
                                                 </div>
                                             </Card>
                                         ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* File Upload Section */}
+                        <div className="mt-10">
+                            <h2 className="text-lg font-medium text-gray-800 mb-2 block">
+                                What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
+                            </h2>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Add logos and images, as well as any references you'd like us to look at.
+                            </p>
+                            <div className="max-w-3xl">
+                                <div
+                                    className={cn(
+                                        "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors",
+                                        isDragging ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground"
+                                    )}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    onDragEnter={handleDragEnter}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                >
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(e) => handleFileSelect(e.target.files)}
+                                        accept=".pdf,.png,.jpeg,.jpg,.ai,.psd,.tif,.cdr,.eps,.gif,.doc,.docx,.bpm,.webm,.m4a,.mp3"
+                                    />
+                                    <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
+                                    <p className="mt-4 text-foreground">Click to browse, or drag and drop a file here</p>
+                                    <p className="mt-2 text-xs text-muted-foreground">Max file size 400MB. Supported types: pdf, png, jpg, ai, psd, etc.</p>
+                                </div>
+                                
+                                {uploadedFiles.length > 0 && (
+                                    <div className="mt-6">
+                                        <h3 className="font-semibold mb-2">Uploaded Files:</h3>
+                                        <div className="space-y-2">
+                                            {uploadedFiles.map(f => (
+                                                <Card key={f.id} className="flex items-center p-3 gap-3">
+                                                    <FileIcon className="h-8 w-8 text-muted-foreground" />
+                                                    <div className="flex-1 overflow-hidden">
+                                                        <p className="text-sm font-medium truncate">{f.file.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{formatFileSize(f.file.size)}</p>
+                                                        {isSubmitting && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-1" />}
+                                                        {f.error && <p className="text-xs text-destructive mt-1">{f.error}</p>}
+                                                    </div>
+                                                    {!isSubmitting && (
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFile(f.id)}>
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </Card>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>
