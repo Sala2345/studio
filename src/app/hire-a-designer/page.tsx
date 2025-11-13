@@ -452,7 +452,7 @@ function HireADesignerPageContent() {
                         {invoiceUrl && (
                             <div className="mt-8">
                                 <p className="text-gray-600 mb-4">Please complete your order by paying the design fee.</p>
-                                <Button asChild size="lg" className="bg-green-600 hover:bg-green-700">
+                                <Button asChild size="lg">
                                     <a href={invoiceUrl} target="_blank" rel="noopener noreferrer">
                                         Pay Now
                                     </a>
@@ -479,7 +479,7 @@ function HireADesignerPageContent() {
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
                             {designSteps.map((step, index) => (
-                                <div key={index} className="bg-red-600 p-6 rounded-lg flex items-center gap-4 text-white">
+                                <div key={index} className="bg-primary p-6 rounded-lg flex items-center gap-4 text-primary-foreground">
                                     <div className="text-4xl font-bold min-w-[30px]">{index + 1}</div>
                                     <div className="text-base font-medium leading-snug">{step.text}</div>
                                 </div>
@@ -518,7 +518,7 @@ function HireADesignerPageContent() {
                         <div className="mt-10">
                             <Label htmlFor="designDescription" className="text-lg font-medium text-gray-800 mb-2 block">
                                 Describe your design in a few words
-                                <span className="text-red-600 ml-1">*</span>
+                                <span className="text-destructive ml-1">*</span>
                             </Label>
                             <p className="text-sm text-gray-600 mb-4">
                                 For example: "I want a bold design for my trade show booth."
@@ -541,11 +541,11 @@ function HireADesignerPageContent() {
                                 <Button
                                     variant="link"
                                     onClick={handleVoiceNoteClick}
-                                    className={cn('p-0 h-auto text-gray-800 hover:text-primary transition-colors', isRecording && 'text-red-600')}
+                                    className={cn('p-0 h-auto text-gray-800 hover:text-primary transition-colors', isRecording && 'text-destructive')}
                                 >
                                     <Mic className={cn('mr-2 h-4 w-4', isRecording && 'animate-pulse')} />
                                     {isRecording ? 'Stop Recording' : 'Add a Voice note'}
-                                    {isRecording && <span className="ml-2 font-semibold text-red-600">{formatTime(recordingTime)}</span>}
+                                    {isRecording && <span className="ml-2 font-semibold text-destructive">{formatTime(recordingTime)}</span>}
                                 </Button>
 
                                 {recordings.length > 0 && (
@@ -569,7 +569,7 @@ function HireADesignerPageContent() {
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadRecording(rec)}>
                                                         <Download className="w-4 h-4" />
                                                     </Button>
-                                                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-100 hover:text-red-600" onClick={() => handleDeleteRecording(rec.id)}>
+                                                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-100 hover:text-destructive" onClick={() => handleDeleteRecording(rec.id)}>
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
                                                 </div>
@@ -669,7 +669,7 @@ function HireADesignerPageContent() {
                             
                             {user && (
                                 <>
-                                    <Button onClick={handleSubmit} disabled={isSubmitting || isUserLoading} size="lg" className="w-full bg-red-600 hover:bg-red-700 text-lg">
+                                    <Button onClick={handleSubmit} disabled={isSubmitting || isUserLoading} size="lg" className="w-full text-lg">
                                         {isSubmitting ? (
                                             <>
                                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
@@ -686,7 +686,7 @@ function HireADesignerPageContent() {
                                     <p className="text-sm text-amber-800">To submit your request, please log in or create an account. This ensures we can contact you about your design.</p>
                                     <div className="mt-4 flex gap-4 justify-center">
                                         <Button variant="outline">Log In</Button>
-                                        <Button className="bg-red-600 hover:bg-red-700">Create Account</Button>
+                                        <Button>Create Account</Button>
                                     </div>
                                 </Card>
                             )}

@@ -127,7 +127,7 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                         />
                         <div className="flex-1">
                             <p className="font-semibold">{selectedProduct.title}</p>
-                            <p className="text-gray-700 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedProduct.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(selectedProduct.priceRangeV2.minVariantPrice.amount))}</p>
+                            <p className="font-bold text-primary">{new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedProduct.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(selectedProduct.priceRangeV2.minVariantPrice.amount))}</p>
                         </div>
                         <Button variant="outline" onClick={handleClearSelection}>Change</Button>
                     </div>
@@ -184,7 +184,7 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                                     </div>
                                     <div className="p-4">
                                         <h3 className="font-semibold text-sm truncate">{product.title}</h3>
-                                        <p className="font-bold text-red-600">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(product.priceRangeV2.minVariantPrice.amount))}</p>
+                                        <p className="font-bold text-primary">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(product.priceRangeV2.minVariantPrice.amount))}</p>
                                     </div>
                                 </Card>
                             ))}
