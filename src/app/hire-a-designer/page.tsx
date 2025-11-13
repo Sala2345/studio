@@ -693,14 +693,7 @@ function HireADesignerPageContent() {
                         </div>
                     </main>
 
-                    <aside>
-                        <Card className="p-6 sticky top-5 bg-gray-100">
-                            <p className="text-base leading-relaxed text-gray-800 mb-4">
-                                "Hello designer: You did an excellent job! I love it...."
-                            </p>
-                            <p className="text-sm font-medium text-gray-600">Guadalupe Abbud</p>
-                        </Card>
-                    </aside>
+                    
                 </div>
             </div>
         </div>
