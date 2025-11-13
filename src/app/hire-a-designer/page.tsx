@@ -126,7 +126,6 @@ function HireADesignerPageContent() {
     }, [formState.selectedProduct]);
 
     useEffect(() => {
-        // Extract customer data from URL parameters
         const email = searchParams.get('email') || '';
         const firstName = searchParams.get('firstName') || '';
         const lastName = searchParams.get('lastName') || '';
@@ -151,7 +150,7 @@ function HireADesignerPageContent() {
                 ...prev,
                 name: prev.name || user.displayName || '',
                 email: prev.email || user.email || '',
-                phoneNumber: prev.phoneNumber || user.phoneNumber || ''
+                phoneNumber: prev.phoneNumber || user.phoneNumber
             }));
         }
     }, [user]);
@@ -177,7 +176,6 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
-    // Voice note functions
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -288,7 +286,6 @@ function HireADesignerPageContent() {
         };
     }, []);
 
-    // File Upload Functions
     const handleFileSelect = (files: FileList | null) => {
         if (!files) return;
         const newFiles = Array.from(files).map(file => ({
@@ -338,18 +335,17 @@ function HireADesignerPageContent() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
     
-    // Form submission
     const handleSubmit = async () => {
-        if (!user || !firestore) {
-            toast({ variant: 'destructive', title: 'You must be logged in to submit a request.' });
+        if (!firestore) {
+            toast({ variant: 'destructive', title: 'Database not available.' });
             return;
         }
 
         const validationErrors = [];
+        if (!formState.name.trim()) validationErrors.push('Please enter your name.');
+        if (!formState.email.trim()) validationErrors.push('Please enter your email.');
         if (!formState.selectedProduct) validationErrors.push('Please select a product.');
-        if (!formState.selectedVariantId) validationErrors.push('Please select a product variant.');
         if (!formState.designDescription.trim()) validationErrors.push('Please provide a design description.');
-        if (!formState.contactMode) validationErrors.push('Please select a contact method.');
         
         if (validationErrors.length > 0) {
             const errorString = validationErrors.join(' ');
@@ -364,8 +360,8 @@ function HireADesignerPageContent() {
         try {
             const storage = getStorage();
             const designRequestId = doc(collection(firestore, 'ids')).id;
-            
-            // Combine uploaded files and voice notes
+            const customerId = user?.uid || formState.email.replace(/[^a-zA-Z0-9]/g, '');
+
             const allFilesToUpload: UploadableFile[] = [
                 ...uploadedFiles,
                 ...recordings.map(rec => ({
@@ -375,13 +371,10 @@ function HireADesignerPageContent() {
                 }))
             ];
             
-            // Update the state to show voice notes in the upload list
             setUploadedFiles(allFilesToUpload);
 
-
-            // 1. Upload all files (including voice notes) to Firebase Storage
             const fileUploadPromises = allFilesToUpload.map(async (fileToUpload) => {
-                const filePath = `design_requests/${user.uid}/${designRequestId}/${fileToUpload.file.name}`;
+                const filePath = `design_requests/${customerId}/${designRequestId}/${fileToUpload.file.name}`;
                 const storageRef = ref(storage, filePath);
                 const uploadTask = uploadBytesResumable(storageRef, fileToUpload.file);
 
@@ -419,63 +412,54 @@ function HireADesignerPageContent() {
 
             const uploadedFileUrls = await Promise.all(fileUploadPromises);
             
-            // Create/update customer profile
-            const customerRef = doc(firestore, 'customers', user.uid);
+            const customerRef = doc(firestore, 'customers', customerId);
             const customerData = {
-                id: user.uid,
-                email: formState.email || user.email,
-                name: formState.name || user.displayName,
-                phoneNumber: formState.phoneNumber || user.phoneNumber,
+                id: customerId,
+                email: formState.email,
+                name: formState.name,
+                phoneNumber: formState.phoneNumber,
                 shopifyCustomerId: formState.shopifyCustomerId,
                 updatedAt: serverTimestamp(),
             };
             await setDoc(customerRef, customerData, { merge: true });
 
-
-            // 2. Create Firestore document
-            const designRequestRef = doc(firestore, 'customers', user.uid, 'designRequests', designRequestId);
+            const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
             const finalFormState = {
                 ...formState,
                 productId: formState.selectedProduct?.id,
                 productTitle: formState.selectedProduct?.title,
-                customerName: formState.name || user.displayName,
+                customerName: formState.name,
                 id: designRequestId,
-                customerId: user.uid,
+                customerId: customerId,
                 fileUrls: uploadedFileUrls,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
             delete (finalFormState as any).selectedProduct;
 
-
             await setDoc(designRequestRef, finalFormState);
 
-            // 3. Create Shopify Draft Order
-            // This assumes user.uid can be mapped to a Shopify Customer Numeric ID.
-            // In a real app, you'd look up the shopifyCustomerId from the /customers/{uid} document.
-            // For this example, we'll use the one from the URL param if available
             const shopifyCustomerIdForOrder = formState.shopifyCustomerId?.replace(/[^0-9]/g, '');
-            if (!shopifyCustomerIdForOrder) {
-                throw new Error("Could not determine a numeric Shopify customer ID from your user account or URL.");
+            if (shopifyCustomerIdForOrder && formState.selectedVariantId) {
+                const draftOrderResult = await createDraftOrderFlow({
+                    designRequestId,
+                    customerId: shopifyCustomerIdForOrder, 
+                    variantId: formState.selectedVariantId,
+                    fileUrls: uploadedFileUrls,
+                });
+
+                if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
+                    console.warn("Could not create Shopify draft order:", draftOrderResult.error);
+                    // Don't throw, just log and continue. The main request is saved.
+                } else {
+                    setInvoiceUrl(draftOrderResult.invoiceUrl);
+                }
+            } else {
+                 console.warn("Skipping Shopify draft order: Missing Shopify Customer ID or Product Variant ID.");
             }
             
-            if (!formState.selectedVariantId) {
-                throw new Error("Selected product does not have a valid variant ID.");
-            }
-
-            const draftOrderResult = await createDraftOrderFlow({
-                designRequestId,
-                customerId: shopifyCustomerIdForOrder, 
-                variantId: formState.selectedVariantId,
-                fileUrls: uploadedFileUrls,
-            });
-
-            if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
-                throw new Error(draftOrderResult.error || "Failed to create draft order in Shopify.");
-            }
-            
-            setInvoiceUrl(draftOrderResult.invoiceUrl);
             setSubmissionSuccess(true);
+
         } catch (error: any) {
             console.error("Submission failed:", error);
             const errorMessage = error.message || 'An unknown error occurred during submission.';
@@ -493,11 +477,11 @@ function HireADesignerPageContent() {
                     <Card className="p-6 md:p-12 text-center bg-green-50 border-2 border-green-500">
                         <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
-                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted.</p>
-                        <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you within 24 hours at <strong>{user?.email}</strong>.</p>
+                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted and logged.</p>
+                        <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
                         {invoiceUrl && (
                             <div className="mt-8">
-                                <p className="text-gray-600 mb-4">Please complete your order by paying the design fee.</p>
+                                <p className="text-gray-600 mb-4">To complete your order, please proceed with the payment.</p>
                                 <Button asChild size="lg">
                                     <a href={invoiceUrl} target="_blank" rel="noopener noreferrer">
                                         Pay Now
@@ -532,16 +516,15 @@ function HireADesignerPageContent() {
                             ))}
                         </div>
 
-                        {/* Contact Info Section */}
                         <div className="mb-10">
                             <h2 className="text-lg font-medium text-gray-800 mb-4">Your Contact Information</h2>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <Label htmlFor="name">Name</Label>
+                                    <Label htmlFor="name">Name <span className="text-destructive">*</span></Label>
                                     <Input id="name" type="text" placeholder="Your full name" value={formState.name} onChange={handleFormChange} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
+                                    <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
                                     <Input id="email" type="email" placeholder="you@example.com" value={formState.email} onChange={handleFormChange} />
                                 </div>
                                 <div className="space-y-2">
@@ -551,7 +534,6 @@ function HireADesignerPageContent() {
                             </div>
                         </div>
 
-                        {/* Product Selection Section */}
                         <div className="mb-10">
                              <ProductSelector
                                 selectedProduct={formState.selectedProduct}
@@ -561,7 +543,6 @@ function HireADesignerPageContent() {
                              />
                         </div>
                         
-                        {/* Dimensions Section */}
                         {formState.selectedProduct && (
                             <div className="mb-10">
                                 <h2 className="text-lg font-medium text-gray-800 mb-4">Dimensions</h2>
@@ -595,8 +576,6 @@ function HireADesignerPageContent() {
                             </div>
                         )}
 
-
-                        {/* Form Section */}
                         <div className="mt-10">
                             <Label htmlFor="designDescription" className="text-lg font-medium text-gray-800 mb-2 block">
                                 Describe your design in a few words
@@ -623,7 +602,7 @@ function HireADesignerPageContent() {
                                 <Button
                                     variant="link"
                                     onClick={handleVoiceNoteClick}
-                                    className={cn('p-0 h-auto text-gray-800 hover:text-primary transition-colors', isRecording && 'text-destructive')}
+                                    className={cn('p-0 h-auto text-primary hover:text-primary transition-colors', isRecording && 'text-destructive')}
                                 >
                                     <Mic className={cn('mr-2 h-4 w-4', isRecording && 'animate-pulse')} />
                                     {isRecording ? 'Stop Recording' : 'Add a Voice note'}
@@ -673,7 +652,6 @@ function HireADesignerPageContent() {
                             <ColorPreference onChange={handleColorChange} />
                         </div>
                         
-                        {/* File Upload Section */}
                         <div className="mt-10">
                             <Label className="text-lg font-medium text-gray-800 mb-2 block">
                                 What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
@@ -743,62 +721,51 @@ function HireADesignerPageContent() {
                             />
                         </div>
 
-
-                        {/* Submission Section */}
                          <div className="mt-12 max-w-md mx-auto text-center">
-                             <div className="bg-muted p-6 rounded-lg mb-6">
-                                <h3 className="font-semibold text-lg mb-4">Review Your Request</h3>
-                                <div className="space-y-3 text-left">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Product:</span>
-                                        <span className="font-medium">{formState.selectedProduct ? "Selected" : "Not Selected"}</span>
+                             <div className="submit-summary" id="submitSummary">
+                                <h3>Review Your Request</h3>
+                                <div className="summary-items" id="summaryItems">
+                                     <div className="summary-item">
+                                        <div className={cn("summary-icon", formState.selectedProduct ? 'complete' : 'incomplete' )}>
+                                            <CheckCircle />
+                                        </div>
+                                        <div className="summary-label">Product:</div>
+                                        <div className="summary-value">{formState.selectedProduct?.title || 'Not selected'}</div>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Description:</span>
-                                        <span className="font-medium">{formState.designDescription ? "Provided" : "Not Provided"}</span>
+                                     <div className="summary-item">
+                                        <div className={cn("summary-icon", formState.designDescription ? 'complete' : 'incomplete' )}>
+                                            <CheckCircle />
+                                        </div>
+                                        <div className="summary-label">Description:</div>
+                                        <div className="summary-value">{formState.designDescription ? 'Provided' : 'Not provided'}</div>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Contact Mode:</span>
-                                        <span className="font-medium capitalize">{formState.contactMode ? formState.contactMode : "Not Selected"}</span>
+                                    <div className="summary-item">
+                                        <div className={cn("summary-icon", formState.contactMode ? 'complete' : 'incomplete' )}>
+                                            <CheckCircle />
+                                        </div>
+                                        <div className="summary-label">Contact Mode:</div>
+                                        <div className="summary-value capitalize">{formState.contactMode || 'Not selected'}</div>
                                     </div>
-                                     <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Style:</span>
-                                        <span className="font-medium capitalize">{formState.designStyle ? formState.designStyle.replace(/-/g, ' ') : "Not Selected"}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Files:</span>
-                                        <span className="font-medium">{uploadedFiles.length} file(s)</span>
-                                    </div>
-                                     <div className="flex justify-between items-center">
-                                        <span className="text-muted-foreground">Voice Notes:</span>
-                                        <span className="font-medium">{recordings.length} recording(s)</span>
+                                    <div className="summary-item">
+                                        <div className={cn("summary-icon", uploadedFiles.length > 0 ? 'complete' : 'incomplete' )}>
+                                            <CheckCircle />
+                                        </div>
+                                        <div className="summary-label">Files:</div>
+                                        <div className="summary-value">{uploadedFiles.length + recordings.length} file(s)</div>
                                     </div>
                                 </div>
                             </div>
                             
-                            {user && (
-                                <>
-                                    <Button onClick={handleSubmit} disabled={isSubmitting || isUserLoading} size="lg" className="w-full text-lg">
-                                        {isSubmitting ? (
-                                            <>
-                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                                                Submitting...
-                                            </>
-                                        ) : 'Hire a Designer & Proceed to Payment'}
-                                    </Button>
-                                    {submissionError && <div className="mt-4 text-destructive bg-destructive/10 p-3 rounded-md">{submissionError}</div>}
-                                </>
-                            )}
-                             {!user && !isUserLoading && (
-                                <Card className="p-6 bg-amber-50 border-amber-300 text-center">
-                                    <h4 className="font-bold text-lg text-amber-900 mb-2">Create an Account to Continue</h4>
-                                    <p className="text-sm text-amber-800">To submit your request, please log in or create an account. This ensures we can contact you about your design.</p>
-                                    <div className="mt-4 flex gap-4 justify-center">
-                                        <Button variant="outline">Log In</Button>
-                                        <Button>Create Account</Button>
-                                    </div>
-                                </Card>
-                            )}
+                            <Button onClick={handleSubmit} disabled={isSubmitting || isUserLoading} size="lg" className="hire-designer-btn w-full">
+                                {isSubmitting ? (
+                                    <div className="btn-loading"></div>
+                                ) : (
+                                    <span className="btn-text">
+                                        Hire a Designer & Proceed to Payment
+                                    </span>
+                                )}
+                            </Button>
+                            {submissionError && <div className="error-message visible">{submissionError}</div>}
                         </div>
                     </main>
 
@@ -817,3 +784,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
