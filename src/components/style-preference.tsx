@@ -113,11 +113,11 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
               )}
             >
               <div className={cn(
-                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200",
+                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200 flex items-center justify-center",
                 "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border"
               )}>
                 <div className={cn(
-                  "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[8px] h-[8px] bg-primary rounded-full transition-transform scale-0",
+                  "w-full h-full bg-primary rounded-full transition-transform scale-0",
                   "peer-data-[state=checked]:scale-100"
                   )} />
               </div>
@@ -139,11 +139,11 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
               )}
             >
               <div className={cn(
-                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200",
+                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200 flex items-center justify-center",
                 "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border"
               )}>
                  <div className={cn(
-                  "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[8px] h-[8px] bg-primary rounded-full transition-transform scale-0",
+                  "w-full h-full bg-primary rounded-full transition-transform scale-0",
                   "peer-data-[state=checked]:scale-100"
                   )} />
               </div>
@@ -238,5 +238,3 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
     </div>
   );
 };
-
-    
