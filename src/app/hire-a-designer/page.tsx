@@ -18,15 +18,12 @@ import { Progress } from '@/components/ui/progress';
 
 const designSteps = [
     {
-        icon: "https://placehold.co/50x50/FFFFFF/ED1C24?text=1",
         text: 'Submit request and place order',
     },
     {
-        icon: "https://placehold.co/50x50/FFFFFF/ED1C24?text=2",
         text: 'Finalize design with our expert',
     },
     {
-        icon: "https://placehold.co/50x50/FFFFFF/ED1C24?text=3",
         text: "We'll print and ship your order",
     },
 ]
@@ -357,7 +354,6 @@ export default function HireADesignerPage() {
                             {designSteps.map((step, index) => (
                                 <div key={index} className="bg-red-600 p-6 rounded-lg flex items-center gap-4 text-white">
                                     <div className="text-4xl font-bold min-w-[30px]">{index + 1}</div>
-                                    <Image src={step.icon} width={50} height={50} alt={`Step ${index + 1}`} className="rounded-full"/>
                                     <div className="text-base font-medium leading-snug">{step.text}</div>
                                 </div>
                             ))}
