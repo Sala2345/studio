@@ -6,6 +6,8 @@ export type DesignTemplate = {
   defaultWidth?: number;
   defaultHeight?: number;
   allowAnySize: boolean;
+  imageUrl?: string;
+  imageHint?: string;
 };
 
 export const designTemplates: DesignTemplate[] = data.templates;
