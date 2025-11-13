@@ -23,6 +23,8 @@ import { StylePreference } from '@/components/style-preference';
 import { ColorPreference } from '@/components/color-preference';
 import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
+
 
 const designSteps = [
     {
@@ -50,30 +52,6 @@ type UploadableFile = {
     url?: string;
     error?: string;
 };
-
-const provinces = [
-  { name: 'Alberta', code: 'AB' },
-  { name: 'British Columbia', code: 'BC' },
-  { name: 'Manitoba', code: 'MB' },
-  { name: 'New Brunswick', code: 'NB' },
-  { name: 'Newfoundland and Labrador', code: 'NL' },
-  { name: 'Nova Scotia', code: 'NS' },
-  { name: 'Ontario', code: 'ON' },
-  { name: 'Prince Edward Island', code: 'PE' },
-  { name: 'Quebec', code: 'QC' },
-  { name: 'Saskatchewan', code: 'SK' },
-  { name: 'Northwest Territories', code: 'NT' },
-  { name: 'Nunavut', code: 'NU' },
-  { name: 'Yukon', code: 'YT' },
-];
-
-const cities = [
-  "Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton", "Ottawa", 
-  "Mississauga", "Winnipeg", "Hamilton", "Brampton", "Quebec City", "Surrey",
-  "Laval", "Halifax", "London", "Markham", "Vaughan", "Gatineau", "Saskatoon",
-  "Kitchener", "Windsor", "Regina", "Richmond", "Burnaby", "Oshawa"
-];
-
 
 interface FormState {
     name: string;
@@ -103,6 +81,8 @@ function HireADesignerPageContent() {
 
     const [uploadedFiles, setUploadedFiles] = useState<UploadableFile[]>([]);
     const [isDragging, setIsDragging] = useState(false);
+    const [availableCities, setAvailableCities] = useState<string[]>([]);
+
 
     const [formState, setFormState] = useState<FormState>({
         name: '',
@@ -158,27 +138,31 @@ function HireADesignerPageContent() {
 
     useEffect(() => {
         const email = searchParams.get('email') || '';
-        const firstName = searchParams.get('firstName') || '';
-        const lastName = searchParams.get('lastName') || '';
+        const name = searchParams.get('name') || '';
         const phone = searchParams.get('phone') || '';
-        const customerId = searchParams.get('customerId') || '';
-        const fullName = `${firstName} ${lastName}`.trim();
+        const customerId = searchParams.get('customer_id') || '';
         const address1 = searchParams.get('address1') || '';
         const city = searchParams.get('city') || '';
-        const province = searchParams.get('province') || '';
+        const provinceCode = searchParams.get('provinceCode') || '';
         const zip = searchParams.get('zip') || '';
         
+        const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
+
         setFormState(prev => ({
             ...prev,
             email: email || prev.email,
-            name: fullName || prev.name,
+            name: name || prev.name,
             phoneNumber: phone || prev.phoneNumber,
             streetAddress: address1 || prev.streetAddress,
             city: city || prev.city,
-            province: province || prev.province,
+            province: provinceName || prev.province,
             postalCode: zip || prev.postalCode,
             shopifyCustomerId: customerId || prev.shopifyCustomerId
         }));
+
+        if (provinceName) {
+            setAvailableCities(getCitiesForProvince(provinceName));
+        }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
@@ -201,6 +185,13 @@ function HireADesignerPageContent() {
 
     const handleSelectChange = (field: keyof FormState) => (value: string) => {
         setFormState(prev => ({ ...prev, [field]: value }));
+        
+        if (field === 'province') {
+            const cities = getCitiesForProvince(value);
+            setAvailableCities(cities);
+            // Reset city when province changes
+            setFormState(prev => ({ ...prev, city: '' }));
+        }
     }
 
     const handleContactModeChange = useCallback((value: string) => {
@@ -591,17 +582,6 @@ function HireADesignerPageContent() {
                                     <Input id="streetAddress" placeholder="123 Main St" value={formState.streetAddress} onChange={handleFormChange} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
-                                     <Select value={formState.city} onValueChange={handleSelectChange('city')}>
-                                        <SelectTrigger id="city">
-                                            <SelectValue placeholder="Select a city" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {cities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                 <div className="space-y-2">
                                     <Label htmlFor="province">Province <span className="text-destructive">*</span></Label>
                                      <Select value={formState.province} onValueChange={handleSelectChange('province')}>
                                         <SelectTrigger id="province">
@@ -612,7 +592,18 @@ function HireADesignerPageContent() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                 <div className="space-y-2 sm:col-span-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
+                                     <Select value={formState.city} onValueChange={handleSelectChange('city')} disabled={!formState.province}>
+                                        <SelectTrigger id="city">
+                                            <SelectValue placeholder="Select a city" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableCities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                 <div className="space-y-2">
                                     <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
                                     <Input id="postalCode" placeholder="A1B 2C3" value={formState.postalCode} onChange={handleFormChange} />
                                 </div>
