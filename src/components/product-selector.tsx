@@ -129,7 +129,7 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                             <p className="font-semibold">{selectedProduct.title}</p>
                             <p className="font-bold text-destructive">{new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedProduct.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(selectedProduct.priceRangeV2.minVariantPrice.amount))}</p>
                         </div>
-                        <Button onClick={handleClearSelection} className="bg-[#ED1C24] text-white hover:bg-[#ED1C24] hover:text-white">Change</Button>
+                        <Button onClick={handleClearSelection} className="bg-primary text-primary-foreground hover:bg-primary/90">Change</Button>
                     </div>
                 </CardContent>
             </Card>
@@ -211,7 +211,7 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                                     Previous
                                 </Button>
                                 <Button
-                                    variant="outline"
+                                    variant="default"
                                     size="sm"
                                     onClick={handleNextPage}
                                     disabled={currentPage === totalPages}
