@@ -196,11 +196,11 @@
 
   /* Primary Button (Orange) */
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-3 bg-white;
-    @apply border-2 border-[#ED1C24] rounded-md;
-    @apply text-[15px] text-[#ED1C24] font-medium;
+    @apply inline-flex items-center gap-2 px-6 py-3 bg-accent;
+    @apply border-2 border-accent rounded-md;
+    @apply text-[15px] text-white font-medium;
     @apply cursor-pointer transition-all duration-200;
-    @apply hover:bg-primary/5;
+    @apply hover:bg-accent-hover;
   }
 
   .btn-primary:active {
@@ -364,7 +364,7 @@
   }
 
   .bg-accent-hover {
-    background-color: hsl(var(--accent-primary-hover));
+    background-color: hsl(var(--accent-primary-hover), 0.9);
   }
 
   /* Danger Color Utilities */
@@ -468,5 +468,3 @@
   background: rgba(237, 28, 36, 0.2);
   color: #2d2d2d;
 }
-
-    
