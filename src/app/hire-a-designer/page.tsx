@@ -20,6 +20,7 @@ import { createDraftOrderFlow } from '@/ai/flows/create-draft-order';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import Image from 'next/image';
 
 const designSteps = [
     {
@@ -60,6 +61,39 @@ interface FormState {
     inspirationLinks: string[];
     shopifyCustomerId?: string;
 }
+
+const styleOptions = [
+    {
+        id: 'clean-minimal',
+        title: 'Clean & Minimal',
+        description: 'Minimal yet impactful, embracing modern simplicity with style.',
+        images: ['101', '102']
+    },
+    {
+        id: 'elegant-formal',
+        title: 'Elegant & Formal',
+        description: 'Elegance with a formal touch, perfect harmony of poise, grace.',
+        images: ['103', '104']
+    },
+    {
+        id: 'typography',
+        title: 'Typography',
+        description: 'Typography with blending elegance, merging style, clarity.',
+        images: ['105', '106']
+    },
+    {
+        id: 'fun-whimsical',
+        title: 'Fun & Whimsical',
+        description: 'Playful & Lively, where creativity meets carefree charm.',
+        images: ['107', '108']
+    },
+    {
+        id: 'let-expert-decide',
+        title: 'Let The Expert Decide',
+        description: 'Trust the expert to choose the best, tailored to your needs with.',
+        images: ['109']
+    },
+]
 
 
 function HireADesignerPageContent() {
@@ -598,7 +632,7 @@ function HireADesignerPageContent() {
                                     <RadioGroupItem value="email" id="contact-email" className="sr-only peer" />
                                     <Label
                                         htmlFor="contact-email"
-                                        className="flex items-center gap-3 p-5 border-2 border-border rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-red-500/5"
+                                        className="flex items-center gap-3 p-5 border-2 border-border rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
                                     >
                                         <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
                                              <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
@@ -610,7 +644,7 @@ function HireADesignerPageContent() {
                                     <RadioGroupItem value="call" id="contact-call" className="sr-only peer" />
                                     <Label
                                         htmlFor="contact-call"
-                                        className="flex items-center gap-3 p-5 border-2 border-border rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-red-500/5"
+                                        className="flex items-center gap-3 p-5 border-2 border-border rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
                                     >
                                         <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
                                             <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
@@ -621,6 +655,54 @@ function HireADesignerPageContent() {
                             </RadioGroup>
                         </div>
                         
+                         {/* Style Selection Section */}
+                        <div className="mb-10">
+                            <h2 className="text-lg font-medium text-gray-800">
+                                What style would you like?
+                                <span className="text-gray-500 font-normal text-base ml-1">(optional)</span>
+                            </h2>
+                            <RadioGroup 
+                                value={formState.designStyle}
+                                onValueChange={(value) => setFormState(prev => ({ ...prev, designStyle: value }))}
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mt-6"
+                            >
+                                {styleOptions.map((style) => (
+                                <div key={style.id}>
+                                    <RadioGroupItem value={style.id} id={`style-${style.id}`} className="sr-only peer" />
+                                    <Label 
+                                        htmlFor={`style-${style.id}`} 
+                                        className="block cursor-pointer rounded-xl border-2 border-border bg-background transition-all hover:border-muted-foreground hover:-translate-y-0.5 hover:shadow-md peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-red-500/5 overflow-hidden"
+                                    >
+                                        <div className="aspect-square bg-gray-100 p-4">
+                                            <div className="flex h-full w-full items-stretch justify-center gap-2">
+                                                {style.images.map((seed, index) => (
+                                                     <div key={index} className="relative w-full h-full">
+                                                        <Image
+                                                            src={`https://picsum.photos/seed/${seed}/300/300`}
+                                                            alt={style.title}
+                                                            fill
+                                                            className="rounded-md object-cover shadow-sm"
+                                                        />
+                                                     </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                 <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
+                                                    <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
+                                                </div>
+                                                <h3 className="font-semibold text-base text-gray-800">{style.title}</h3>
+                                            </div>
+                                            <p className="text-sm text-gray-600 leading-snug">{style.description}</p>
+                                        </div>
+                                    </Label>
+                                </div>
+                                ))}
+                            </RadioGroup>
+                        </div>
+
+
                         {/* File Upload Section */}
                         <div className="mt-10">
                             <Label className="text-lg font-medium text-gray-800 mb-2 block">
