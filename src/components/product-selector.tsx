@@ -35,6 +35,14 @@ export interface ShopifyProduct {
         url: string;
         altText: string;
     };
+    metafields: {
+        edges: {
+            node: {
+                key: string;
+                value: string;
+            }
+        }[];
+    };
 }
 
 interface ProductSelectorProps {
@@ -215,6 +223,7 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                                     size="sm"
                                     onClick={handleNextPage}
                                     disabled={currentPage === totalPages}
+                                    className="bg-primary text-primary-foreground hover:bg-primary/90"
                                 >
                                     Next
                                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -227,3 +236,5 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
         </Card>
     );
 }
+
+    

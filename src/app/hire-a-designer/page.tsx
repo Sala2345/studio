@@ -61,6 +61,8 @@ interface FormState {
     colors: string;
     inspirationLinks: string[];
     shopifyCustomerId?: string;
+    width?: string;
+    height?: string;
 }
 
 function HireADesignerPageContent() {
@@ -83,6 +85,8 @@ function HireADesignerPageContent() {
         designStyle: '',
         colors: '',
         inspirationLinks: [''],
+        width: '',
+        height: '',
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,6 +103,21 @@ function HireADesignerPageContent() {
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleProductSelect = useCallback((product: ShopifyProduct | null) => {
+        setFormState(prev => ({
+            ...prev, 
+            selectedProduct: product,
+            width: product?.metafields?.edges.find(e => e.node.key === 'width')?.node.value || '',
+            height: product?.metafields?.edges.find(e => e.node.key === 'height')?.node.value || ''
+        }));
+    }, []);
+
+    const canEditDimensions = useMemo(() => {
+        if (!formState.selectedProduct) return false;
+        const allowAnySize = formState.selectedProduct.metafields?.edges.find(e => e.node.key === 'allow_any_size')?.node.value;
+        return allowAnySize === 'true';
+    }, [formState.selectedProduct]);
 
     useEffect(() => {
         // Extract customer data from URL parameters
@@ -526,9 +545,43 @@ function HireADesignerPageContent() {
                         <div className="mb-10">
                              <ProductSelector
                                 selectedProduct={formState.selectedProduct}
-                                onProductSelect={(product) => setFormState(prev => ({...prev, selectedProduct: product}))}
+                                onProductSelect={handleProductSelect}
                              />
                         </div>
+                        
+                        {/* Dimensions Section */}
+                        {formState.selectedProduct && (
+                            <div className="mb-10">
+                                <h2 className="text-lg font-medium text-gray-800 mb-4">Dimensions</h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="width">Width (in)</Label>
+                                        <Input 
+                                            id="width" 
+                                            type="number" 
+                                            placeholder="e.g., 31.5" 
+                                            value={formState.width} 
+                                            onChange={handleFormChange} 
+                                            disabled={!canEditDimensions} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="height">Height (in)</Label>
+                                        <Input 
+                                            id="height" 
+                                            type="number" 
+                                            placeholder="e.g., 83.25" 
+                                            value={formState.height} 
+                                            onChange={handleFormChange} 
+                                            disabled={!canEditDimensions} 
+                                        />
+                                    </div>
+                                </div>
+                                {!canEditDimensions && (
+                                    <p className="text-xs text-muted-foreground mt-2">These dimensions are fixed for the selected product.</p>
+                                )}
+                            </div>
+                        )}
 
 
                         {/* Form Section */}
@@ -747,3 +800,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
