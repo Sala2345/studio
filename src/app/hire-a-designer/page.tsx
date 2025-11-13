@@ -15,6 +15,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Progress } from '@/components/ui/progress';
+import { createDraftOrderFlow } from '@/ai/flows/create-draft-order';
 
 const designSteps = [
     {
@@ -54,7 +55,14 @@ export default function HireADesignerPage() {
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
     const [isDragging, setIsDragging] = useState(false);
 
-    const [formState, setFormState] = useState({
+    const [formState, setFormState] = useState<{
+        selectedProduct: { id: string, variantId: string } | null,
+        designDescription: string;
+        contactMode: string;
+        designStyle: string;
+        colors: string;
+        inspirationLinks: string[];
+    }>({
         selectedProduct: null,
         designDescription: '',
         contactMode: '',
@@ -249,6 +257,7 @@ export default function HireADesignerPage() {
         
         if (validationErrors.length > 0) {
             setSubmissionError(validationErrors.join(' '));
+            toast({ variant: 'destructive', title: 'Missing Information', description: validationErrors.join(' ') });
             return;
         }
         
@@ -302,6 +311,7 @@ export default function HireADesignerPage() {
             const designRequestRef = doc(firestore, 'customers', user.uid, 'designRequests', designRequestId);
             await setDoc(designRequestRef, {
                 ...formState,
+                productId: formState.selectedProduct?.id, // Save product ID
                 id: designRequestId,
                 customerId: user.uid,
                 fileUrls: uploadedFileUrls,
@@ -309,15 +319,25 @@ export default function HireADesignerPage() {
                 updatedAt: serverTimestamp(),
             });
 
-            // 3. Create Shopify Draft Order (Server-side action)
-            // This would typically be a call to a Next.js API route or a Genkit flow
-            // For now, we'll simulate success
-            // await createShopifyDraftOrder(data); 
+            // 3. Create Shopify Draft Order
+            const draftOrderResult = await createDraftOrderFlow({
+                designRequestId,
+                // This assumes user.uid can be mapped to a Shopify Customer Numeric ID.
+                // In a real app, you'd look up the shopifyCustomerId from the /customers/{uid} document.
+                customerId: user.uid, 
+                variantId: formState.selectedProduct!.variantId,
+                fileUrls: uploadedFileUrls,
+            });
+
+            if (!draftOrderResult.success) {
+                throw new Error(draftOrderResult.error || "Failed to create draft order in Shopify.");
+            }
 
             setSubmissionSuccess(true);
         } catch (error: any) {
             console.error("Submission failed:", error);
             setSubmissionError(error.message || 'An unknown error occurred during submission.');
+            toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
         } finally {
             setIsSubmitting(false);
         }
@@ -543,3 +563,5 @@ export default function HireADesignerPage() {
         </div>
     );
 }
+
+    
