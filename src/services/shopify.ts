@@ -44,10 +44,13 @@ async function shopifyFetch(graphqlQuery: { query: string; variables?: object })
 }
 
 export async function getProducts(query?: string) {
+  // Always filter for active products, and combine with the user's search query if provided.
+  const combinedQuery = `status:ACTIVE${query ? ` AND (${query})` : ''}`;
+
   const graphqlQuery = {
     query: `
       query getProducts($query: String) {
-        products(first: 25, query: $query) {
+        products(first: 100, query: $query) {
           edges {
             node {
               id
@@ -78,7 +81,7 @@ export async function getProducts(query?: string) {
         }
       }
     `,
-    variables: { query },
+    variables: { query: combinedQuery },
   };
 
   const data = await shopifyFetch(graphqlQuery);
