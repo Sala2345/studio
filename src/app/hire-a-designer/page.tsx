@@ -21,6 +21,7 @@ import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
 import { StylePreference } from '@/components/style-preference';
 import { ColorPreference } from '@/components/color-preference';
+import { InspirationLinks } from '@/components/inspiration-links';
 
 const designSteps = [
     {
@@ -145,6 +146,10 @@ function HireADesignerPageContent() {
     
     const handleColorChange = useCallback((colors: string) => {
         setFormState(prev => ({ ...prev, colors }));
+    }, []);
+
+    const handleLinksChange = useCallback((links: string[]) => {
+        setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
     // Voice note functions
@@ -662,6 +667,13 @@ function HireADesignerPageContent() {
                             </div>
                         </div>
 
+                         <div className="my-10">
+                            <InspirationLinks
+                                onChange={handleLinksChange}
+                            />
+                        </div>
+
+
                         {/* Submission Section */}
                          <div className="mt-12 max-w-md mx-auto text-center">
                              <div className="bg-muted p-6 rounded-lg mb-6">
@@ -735,5 +747,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
