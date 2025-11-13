@@ -43,6 +43,15 @@ type UploadableFile = {
     error?: string;
 };
 
+interface FormState {
+    selectedProduct: { id: string, variantId: string, title: string } | null;
+    designDescription: string;
+    contactMode: string;
+    designStyle: string;
+    colors: string;
+    inspirationLinks: string[];
+}
+
 
 export default function HireADesignerPage() {
     const [description, setDescription] = useState('');
@@ -54,14 +63,7 @@ export default function HireADesignerPage() {
     const [uploadedFiles, setUploadedFiles] = useState<UploadableFile[]>([]);
     const [isDragging, setIsDragging] = useState(false);
 
-    const [formState, setFormState<{
-        selectedProduct: { id: string, variantId: string, title: string } | null,
-        designDescription: string;
-        contactMode: string;
-        designStyle: string;
-        colors: string;
-        inspirationLinks: string[];
-    }>({
+    const [formState, setFormState] = useState<FormState>({
         selectedProduct: null, // Example product
         designDescription: '',
         contactMode: 'email',
@@ -614,5 +616,4 @@ export default function HireADesignerPage() {
             </div>
         </div>
     );
-
-    
+}
