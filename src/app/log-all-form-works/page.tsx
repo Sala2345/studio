@@ -44,13 +44,13 @@ function LogAllFormWorksPage() {
 
   const designRequestsQuery = useMemoFirebase(
     () =>
-      firestore
+      firestore && user // Ensure user is logged in before creating the query
         ? query(
             collectionGroup(firestore, 'designRequests'),
             orderBy('createdAt', 'desc')
           )
         : null,
-    [firestore]
+    [firestore, user] // Add user to dependency array
   );
 
   const { data: designRequests, isLoading: isLoadingRequests } = useCollection<DesignRequest>(designRequestsQuery);
@@ -179,5 +179,3 @@ function LogAllFormWorksPage() {
 }
 
 export default LogAllFormWorksPage;
-
-    
