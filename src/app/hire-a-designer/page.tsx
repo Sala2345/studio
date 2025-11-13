@@ -367,6 +367,10 @@ function HireADesignerPageContent() {
                     progress: 0,
                 }))
             ];
+            
+            // Update the state to show voice notes in the upload list
+            setUploadedFiles(allFilesToUpload);
+
 
             // 1. Upload all files (including voice notes) to Firebase Storage
             const fileUploadPromises = allFilesToUpload.map(async (fileToUpload) => {
@@ -378,7 +382,6 @@ function HireADesignerPageContent() {
                     uploadTask.on('state_changed',
                         (snapshot) => {
                             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            // Update progress for both regular files and voice notes
                              setUploadedFiles(prevFiles =>
                                 prevFiles.map(f =>
                                     f.id === fileToUpload.id ? { ...f, progress } : f
@@ -618,7 +621,7 @@ function HireADesignerPageContent() {
                                     {isRecording && <span className="ml-2 font-semibold text-destructive">{formatTime(recordingTime)}</span>}
                                 </Button>
 
-                                {recordings.length > 0 && (
+                                {recordings.length > 0 && !isSubmitting && (
                                     <div className="mt-5 space-y-3">
                                         <h3 className="font-semibold mb-2">Voice Notes:</h3>
                                         {recordings.map((rec) => (
@@ -672,8 +675,8 @@ function HireADesignerPageContent() {
                             <div className="max-w-3xl">
                                 <div
                                     className={cn(
-                                        "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors",
-                                        isDragging ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground"
+                                        "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors bg-gray-50",
+                                        isDragging ? "border-primary bg-primary/10 border-solid" : "border-gray-300 hover:border-gray-400 hover:bg-gray-100"
                                     )}
                                     onClick={() => fileInputRef.current?.click()}
                                     onDragEnter={handleDragEnter}
@@ -689,26 +692,31 @@ function HireADesignerPageContent() {
                                         onChange={(e) => handleFileSelect(e.target.files)}
                                         accept=".pdf,.png,.jpeg,.jpg,.ai,.psd,.tif,.cdr,.eps,.gif,.doc,.docx,.bpm,.webm,.m4a,.mp3"
                                     />
-                                    <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-                                    <p className="mt-4 text-foreground">Click to browse, or drag and drop a file here</p>
-                                    <p className="mt-2 text-xs text-muted-foreground">Max file size 400MB. Supported types: pdf, png, jpg, ai, psd, etc.</p>
+                                    <UploadCloud className="mx-auto h-12 w-12 text-gray-500" />
+                                    <p className="mt-4 text-gray-800">Click to browse, or drag and drop a file here</p>
+                                    <p className="mt-2 text-xs text-gray-500">
+                                      Supported file types: pdf, png, jpeg, jpg, ai, psd, tif, cdr, eps, gif, doc, docx, bpm<br/>
+                                      Supported file size: maximum 400 MB
+                                    </p>
                                 </div>
                                 
                                 {uploadedFiles.length > 0 && (
                                     <div className="mt-6">
-                                        <h3 className="font-semibold mb-2">Uploaded Files:</h3>
-                                        <div className="space-y-2">
+                                        <h3 className="font-semibold mb-4 text-gray-800">Uploaded Files:</h3>
+                                        <div className="space-y-3">
                                             {uploadedFiles.map(f => (
-                                                <Card key={f.id} className="flex items-center p-3 gap-3">
-                                                    <FileIcon className="h-8 w-8 text-muted-foreground" />
+                                                <Card key={f.id} className="flex items-center p-4 gap-4 hover:shadow-md transition-shadow">
+                                                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                                        <FileIcon className="h-6 w-6 text-gray-500" />
+                                                    </div>
                                                     <div className="flex-1 overflow-hidden">
-                                                        <p className="text-sm font-medium truncate">{f.file.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{formatFileSize(f.file.size)}</p>
-                                                        {isSubmitting && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-1" />}
+                                                        <p className="text-sm font-medium truncate text-gray-800">{f.file.name}</p>
+                                                        <p className="text-xs text-gray-500">{formatFileSize(f.file.size)}</p>
+                                                        {isSubmitting && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-2" />}
                                                         {f.error && <p className="text-xs text-destructive mt-1">{f.error}</p>}
                                                     </div>
                                                     {!isSubmitting && (
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFile(f.id)}>
+                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-500 hover:bg-red-100 hover:text-destructive" onClick={() => removeFile(f.id)}>
                                                             <X className="h-4 w-4" />
                                                         </Button>
                                                     )}
@@ -800,5 +808,7 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
 
     
