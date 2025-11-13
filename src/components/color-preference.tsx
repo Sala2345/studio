@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -54,13 +54,15 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
   const [customColor, setCustomColor] = useState('#ED1C24');
   const customColorInputRef = useRef<HTMLInputElement>(null);
 
+  const memoizedOnChange = useCallback(onChange, [onChange]);
+
   useEffect(() => {
     const colorNames = selectedColors.map(c => c.name).join(', ');
     setText(colorNames);
-    if (onChange) {
-      onChange(colorNames);
+    if (memoizedOnChange) {
+      memoizedOnChange(colorNames);
     }
-  }, [selectedColors, onChange]);
+  }, [selectedColors, memoizedOnChange]);
 
   const handleTogglePicker = () => {
     setIsPickerOpen(prev => !prev);
@@ -78,7 +80,7 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
   };
 
   const handleAddCustomColor = () => {
-    if (customColor && !selectedColors.some(c => c.value === customColor)) {
+    if (customColor && !selectedColors.some(c => c.value.toLowerCase() === customColor.toLowerCase())) {
       setSelectedColors(prev => [...prev, { value: customColor, name: customColor }]);
     }
   };
@@ -122,7 +124,7 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
             <div className="mt-5 p-5 bg-muted/50 rounded-lg max-w-3xl">
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(50px,1fr))] gap-3 mb-5">
                     {defaultColors.map((color) => {
-                        const isSelected = selectedColors.some(sc => sc.value === color.value);
+                        const isSelected = selectedColors.some(sc => sc.value.toLowerCase() === color.value.toLowerCase());
                         return (
                             <button
                                 key={color.value}
@@ -161,7 +163,7 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
                             style={{ backgroundColor: customColor }}
                         ></div>
                     </div>
-                    <Button type="button" onClick={handleAddCustomColor} size="sm">Add</Button>
+                    <Button type="button" onClick={handleAddCustomColor} size="sm">Confirm Colour</Button>
                 </div>
             </div>
         )}
