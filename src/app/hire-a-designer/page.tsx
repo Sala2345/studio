@@ -54,6 +54,7 @@ interface FormState {
     name: string;
     email: string;
     phoneNumber: string;
+    shippingAddress: string;
     selectedProduct: ShopifyProduct | null;
     selectedVariantId: string | null;
     selectedVariantTitle?: string | null;
@@ -79,6 +80,7 @@ function HireADesignerPageContent() {
         name: '',
         email: '',
         phoneNumber: '',
+        shippingAddress: '',
         selectedProduct: null,
         selectedVariantId: null,
         selectedVariantTitle: null,
@@ -127,12 +129,21 @@ function HireADesignerPageContent() {
         const phone = searchParams.get('phone') || '';
         const customerId = searchParams.get('customerId') || '';
         const fullName = `${firstName} ${lastName}`.trim();
+        const address1 = searchParams.get('address1') || '';
+        const city = searchParams.get('city') || '';
+        const province = searchParams.get('province') || '';
+        const zip = searchParams.get('zip') || '';
+        const country = searchParams.get('country') || '';
+
+        const addressParts = [address1, city, province, zip, country].filter(part => part);
+        const fullAddress = addressParts.join(', ');
 
         setFormState(prev => ({
             ...prev,
             email: email || prev.email,
             name: fullName || prev.name,
             phoneNumber: phone || prev.phoneNumber,
+            shippingAddress: fullAddress || prev.shippingAddress,
             shopifyCustomerId: customerId || prev.shopifyCustomerId
         }));
 
@@ -339,6 +350,8 @@ function HireADesignerPageContent() {
         const validationErrors = [];
         if (!formState.name.trim()) validationErrors.push('Please enter your name.');
         if (!formState.email.trim()) validationErrors.push('Please enter your email.');
+        if (!formState.phoneNumber.trim()) validationErrors.push('Please enter your phone number.');
+        if (!formState.shippingAddress.trim()) validationErrors.push('Please enter your shipping address.');
         if (!formState.selectedProduct) validationErrors.push('Please select a product.');
         if (!formState.designDescription.trim()) validationErrors.push('Please provide a design description.');
         
@@ -413,6 +426,7 @@ function HireADesignerPageContent() {
                 email: formState.email,
                 name: formState.name,
                 phoneNumber: formState.phoneNumber,
+                shippingAddress: formState.shippingAddress,
                 shopifyCustomerId: formState.shopifyCustomerId,
                 updatedAt: serverTimestamp(),
             };
@@ -523,8 +537,12 @@ function HireADesignerPageContent() {
                                     <Input id="email" type="email" placeholder="you@example.com" value={formState.email} onChange={handleFormChange} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="phoneNumber">Phone Number (Optional)</Label>
+                                    <Label htmlFor="phoneNumber">Phone Number <span className="text-destructive">*</span></Label>
                                     <Input id="phoneNumber" type="tel" placeholder="(555) 123-4567" value={formState.phoneNumber} onChange={handleFormChange} />
+                                </div>
+                                <div className="space-y-2 sm:col-span-2">
+                                    <Label htmlFor="shippingAddress">Shipping Address <span className="text-destructive">*</span></Label>
+                                    <Textarea id="shippingAddress" placeholder="123 Main St, Anytown, USA 12345" value={formState.shippingAddress} onChange={handleFormChange} className="min-h-[100px]" />
                                 </div>
                             </div>
                         </div>
@@ -746,5 +764,7 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
 
     

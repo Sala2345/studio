@@ -26,6 +26,7 @@ interface DesignRequest {
   customerName: string;
   email: string;
   phoneNumber?: string;
+  shippingAddress?: string;
   productId: string;
   productTitle: string;
   selectedVariantId: string;
@@ -147,6 +148,7 @@ function LogAllFormWorksPage() {
                       <TableCell>
                           <div className="font-medium">{request.customerName || 'N/A'}</div>
                           <div className="text-sm text-muted-foreground">{request.email}</div>
+                          {request.phoneNumber && <div className="text-sm text-muted-foreground">{request.phoneNumber}</div>}
                       </TableCell>
                       <TableCell>
                           <div>{request.productTitle || 'N/A'}</div>
@@ -167,6 +169,7 @@ function LogAllFormWorksPage() {
                                             <h4 className="font-semibold">Contact</h4>
                                             <p>Mode: <Badge variant="secondary">{request.contactMode}</Badge></p>
                                             {request.phoneNumber && <p>Phone: {request.phoneNumber}</p>}
+                                            {request.shippingAddress && <p>Address: {request.shippingAddress}</p>}
                                         </div>
                                         <div>
                                             <h4 className="font-semibold">Design Preferences</h4>
@@ -226,3 +229,5 @@ function LogAllFormWorksPage() {
 }
 
 export default LogAllFormWorksPage;
+
+    
