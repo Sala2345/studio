@@ -1,4 +1,6 @@
 
+'use server';
+
 /**
  * @fileOverview Service for interacting with the Shopify Admin API.
  */
