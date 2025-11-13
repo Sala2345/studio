@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -15,6 +16,9 @@ import { Loader2, Download, Edit } from "lucide-react";
 import { designTemplates, DesignTemplate } from "@/lib/design-templates";
 import { cn } from "@/lib/utils";
 
+const MAX_IMAGE_SIZE_MB = 0.95; // Just under 1MB to be safe
+const MAX_IMAGE_DIMENSION = 1024; // Max width/height for resizing
+
 function DesignerPageContent() {
   const searchParams = useSearchParams();
   const [prompt, setPrompt] = useState("");
@@ -29,6 +33,8 @@ function DesignerPageContent() {
 
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const resizeCanvasRef = useRef<HTMLCanvasElement>(null);
+
 
   useEffect(() => {
     const templateId = searchParams.get('template');
@@ -44,13 +50,57 @@ function DesignerPageContent() {
   const handleBaseImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setBaseImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        resizeImage(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setBaseImage(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
+
+  const resizeImage = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.createElement('img');
+      img.onload = () => {
+        const canvas = resizeCanvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let { width, height } = img;
+        if (width > height) {
+          if (width > MAX_IMAGE_DIMENSION) {
+            height *= MAX_IMAGE_DIMENSION / width;
+            width = MAX_IMAGE_DIMENSION;
+          }
+        } else {
+          if (height > MAX_IMAGE_DIMENSION) {
+            width *= MAX_IMAGE_DIMENSION / height;
+            height = MAX_IMAGE_DIMENSION;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Use a lower quality for JPEG to further reduce size
+        const resizedDataUrl = canvas.toDataURL(file.type, 0.9);
+        setBaseImage(resizedDataUrl);
+         toast({
+          title: "Image Resized",
+          description: "Your image was large and has been automatically resized to optimize performance.",
+        });
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
 
   const handleGenerateClick = async (isEdit: boolean = false) => {
     const currentPrompt = isEdit ? editPrompt : prompt;
@@ -153,6 +203,7 @@ function DesignerPageContent() {
   return (
     <div className="p-4 sm:p-6 bg-background text-foreground min-h-screen">
       <canvas ref={canvasRef} className="hidden" />
+      <canvas ref={resizeCanvasRef} className="hidden" />
       <Card className="w-full max-w-7xl mx-auto shadow-xl">
         <CardHeader>
           <CardTitle className="text-3xl font-bold">AI Designer</CardTitle>
