@@ -109,7 +109,7 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
               htmlFor="contact-email"
               className={cn(
                 "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
-                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-muted-foreground"
+                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-primary"
               )}
             >
               <div className={cn(
@@ -135,7 +135,7 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
               htmlFor="contact-call"
                className={cn(
                 "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
-                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-muted-foreground"
+                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-primary"
               )}
             >
               <div className={cn(
@@ -175,7 +175,7 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
                 htmlFor={styleId}
                 className={cn(
                     "group relative border-2 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 bg-background",
-                    isSelected ? 'border-primary shadow-lg' : 'border-border hover:border-muted-foreground hover:shadow-md'
+                    isSelected ? 'border-primary shadow-lg' : 'border-border hover:border-primary hover:shadow-md'
                 )}
               >
                 <RadioGroupItem

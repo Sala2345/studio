@@ -163,7 +163,7 @@ export const ColorPreference: React.FC<ColorPreferenceProps> = ({
                             style={{ backgroundColor: customColor }}
                         ></div>
                     </div>
-                    <Button type="button" onClick={handleAddCustomColor} size="sm">Confirm Colour</Button>
+                    <Button type="button" onClick={handleAddCustomColor} size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">Confirm Colour</Button>
                 </div>
             </div>
         )}
