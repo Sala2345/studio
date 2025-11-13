@@ -56,6 +56,7 @@ interface FormState {
     phoneNumber: string;
     selectedProduct: ShopifyProduct | null;
     selectedVariantId: string | null;
+    selectedVariantTitle?: string | null;
     designDescription: string;
     contactMode: string;
     designStyle: string;
@@ -82,6 +83,7 @@ function HireADesignerPageContent() {
         phoneNumber: '',
         selectedProduct: null,
         selectedVariantId: null,
+        selectedVariantTitle: null,
         designDescription: '',
         contactMode: 'email',
         designStyle: '',
@@ -116,8 +118,13 @@ function HireADesignerPageContent() {
     }, []);
 
     const handleVariantSelect = useCallback((variantId: string | null) => {
-        setFormState(prev => ({ ...prev, selectedVariantId: variantId }));
-    }, []);
+        const variant = formState.selectedProduct?.variants.edges.find(edge => edge.node.id === variantId)?.node;
+        setFormState(prev => ({ 
+            ...prev, 
+            selectedVariantId: variantId,
+            selectedVariantTitle: variant?.title
+        }));
+    }, [formState.selectedProduct]);
 
     const canEditDimensions = useMemo(() => {
         if (!formState.selectedProduct) return false;
@@ -761,7 +768,7 @@ function HireADesignerPageContent() {
                                     <div className="btn-loading"></div>
                                 ) : (
                                     <span className="btn-text">
-                                        Hire a Designer & Proceed to Payment
+                                        Hire a Designer
                                     </span>
                                 )}
                             </Button>
