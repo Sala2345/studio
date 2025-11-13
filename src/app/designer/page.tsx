@@ -1,7 +1,8 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,8 @@ import { Loader2, Download, Edit } from "lucide-react";
 import { designTemplates, DesignTemplate } from "@/lib/design-templates";
 import { cn } from "@/lib/utils";
 
-export default function DesignerPage() {
+function DesignerPageContent() {
+  const searchParams = useSearchParams();
   const [prompt, setPrompt] = useState("");
   const [baseImage, setBaseImage] = useState<string | null>(null);
   const [generatedDesign, setGeneratedDesign] = useState<string | null>(null);
@@ -27,6 +29,17 @@ export default function DesignerPage() {
 
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const templateId = searchParams.get('template');
+    if (templateId) {
+      const template = designTemplates.find(t => t.id === templateId);
+      if (template) {
+        handleTemplateSelect(template);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleBaseImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -281,5 +294,13 @@ export default function DesignerPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function DesignerPage() {
+  return (
+    <React.Suspense fallback={<div>Loading...</div>}>
+      <DesignerPageContent />
+    </React.Suspense>
   );
 }
