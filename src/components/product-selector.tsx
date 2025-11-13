@@ -10,6 +10,13 @@ import Image from 'next/image';
 import { Check, Loader2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+
+export interface ShopifyProductVariant {
+    id: string;
+    title: string;
+}
 
 export interface ShopifyProduct {
     id: string;
@@ -26,9 +33,7 @@ export interface ShopifyProduct {
     };
     variants: {
         edges: {
-            node: {
-                id: string;
-            };
+            node: ShopifyProductVariant;
         }[];
     };
     featuredImage?: {
@@ -48,11 +53,13 @@ export interface ShopifyProduct {
 interface ProductSelectorProps {
     selectedProduct: ShopifyProduct | null;
     onProductSelect: (product: ShopifyProduct | null) => void;
+    selectedVariantId: string | null;
+    onVariantSelect: (variantId: string | null) => void;
 }
 
 const PRODUCTS_PER_PAGE = 6;
 
-export function ProductSelector({ selectedProduct, onProductSelect }: ProductSelectorProps) {
+export function ProductSelector({ selectedProduct, onProductSelect, selectedVariantId, onVariantSelect }: ProductSelectorProps) {
     const [products, setProducts] = useState<ShopifyProduct[]>([]);
     const [filteredProducts, setFilteredProducts] = useState<ShopifyProduct[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -96,10 +103,16 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
 
     const handleSelectProduct = (product: ShopifyProduct) => {
         onProductSelect(product);
+        if (product.variants.edges.length > 0) {
+            onVariantSelect(product.variants.edges[0].node.id);
+        } else {
+            onVariantSelect(null);
+        }
     };
     
     const handleClearSelection = () => {
         onProductSelect(null);
+        onVariantSelect(null);
     }
 
     // Pagination calculations
@@ -125,19 +138,35 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                     <CardTitle className="text-lg font-medium text-gray-800">Selected Product</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center gap-4 p-4 border rounded-lg">
+                    <div className="flex items-start gap-4 p-4 border rounded-lg flex-col sm:flex-row">
                         <Image
                             src={selectedProduct.featuredImage?.url || 'https://placehold.co/80x80'}
                             alt={selectedProduct.title}
                             width={80}
                             height={80}
-                            className="rounded-md object-cover"
+                            className="rounded-md object-cover flex-shrink-0"
                         />
-                        <div className="flex-1">
+                        <div className="flex-1 w-full">
                             <p className="font-semibold">{selectedProduct.title}</p>
                             <p className="font-bold text-destructive">{new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedProduct.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(selectedProduct.priceRangeV2.minVariantPrice.amount))}</p>
+                             {selectedProduct.variants.edges.length > 1 && (
+                                <div className="mt-2">
+                                     <Select value={selectedVariantId || ''} onValueChange={(value) => onVariantSelect(value)}>
+                                        <SelectTrigger className="w-full sm:w-[200px]">
+                                            <SelectValue placeholder="Select variant" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {selectedProduct.variants.edges.map(({node: variant}) => (
+                                                <SelectItem key={variant.id} value={variant.id}>
+                                                    {variant.title}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
                         </div>
-                        <Button onClick={handleClearSelection} className="bg-primary text-primary-foreground hover:bg-primary/90">Change</Button>
+                        <Button onClick={handleClearSelection} className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">Change</Button>
                     </div>
                 </CardContent>
             </Card>
@@ -173,7 +202,7 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                                     key={product.id}
                                     onClick={() => handleSelectProduct(product)}
                                     className={cn(
-                                        "cursor-pointer transition-all hover:shadow-lg",
+                                        "cursor-pointer transition-all hover:shadow-lg flex flex-col",
                                         selectedProduct?.id === product.id && "ring-2 ring-primary"
                                     )}
                                 >
@@ -190,9 +219,17 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-4">
+                                    <div className="p-4 flex flex-col flex-grow">
                                         <h3 className="font-semibold text-sm truncate">{product.title}</h3>
-                                        <p className="font-bold text-destructive">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(product.priceRangeV2.minVariantPrice.amount))}</p>
+                                        <p className="font-bold text-destructive text-lg">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(product.priceRangeV2.minVariantPrice.amount))}</p>
+                                        <div className="text-xs text-muted-foreground mt-2 flex-grow">
+                                          {product.metafields.edges.find(e => e.node.key === 'width')?.node.value && (
+                                              <p>W: {product.metafields.edges.find(e => e.node.key === 'width')?.node.value}"</p>
+                                          )}
+                                          {product.metafields.edges.find(e => e.node.key === 'height')?.node.value && (
+                                              <p>H: {product.metafields.edges.find(e => e.node.key === 'height')?.node.value}"</p>
+                                          )}
+                                        </div>
                                     </div>
                                 </Card>
                             ))}
@@ -236,5 +273,3 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
         </Card>
     );
 }
-
-    

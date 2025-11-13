@@ -72,10 +72,11 @@ export async function getProducts(query?: string) {
                 url
                 altText
               }
-              variants(first: 1) {
+              variants(first: 10) {
                 edges {
                   node {
                     id
+                    title
                   }
                 }
               }
@@ -191,5 +192,3 @@ export async function createDraftOrder(customerId: string, variantId: string, cu
   };
   return shopifyFetch(graphqlQuery);
 }
-
-    

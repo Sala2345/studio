@@ -55,6 +55,7 @@ interface FormState {
     email: string;
     phoneNumber: string;
     selectedProduct: ShopifyProduct | null;
+    selectedVariantId: string | null;
     designDescription: string;
     contactMode: string;
     designStyle: string;
@@ -80,6 +81,7 @@ function HireADesignerPageContent() {
         email: '',
         phoneNumber: '',
         selectedProduct: null,
+        selectedVariantId: null,
         designDescription: '',
         contactMode: 'email',
         designStyle: '',
@@ -111,6 +113,10 @@ function HireADesignerPageContent() {
             width: product?.metafields?.edges.find(e => e.node.key === 'width')?.node.value || '',
             height: product?.metafields?.edges.find(e => e.node.key === 'height')?.node.value || ''
         }));
+    }, []);
+
+    const handleVariantSelect = useCallback((variantId: string | null) => {
+        setFormState(prev => ({ ...prev, selectedVariantId: variantId }));
     }, []);
 
     const canEditDimensions = useMemo(() => {
@@ -341,6 +347,7 @@ function HireADesignerPageContent() {
 
         const validationErrors = [];
         if (!formState.selectedProduct) validationErrors.push('Please select a product.');
+        if (!formState.selectedVariantId) validationErrors.push('Please select a product variant.');
         if (!formState.designDescription.trim()) validationErrors.push('Please provide a design description.');
         if (!formState.contactMode) validationErrors.push('Please select a contact method.');
         
@@ -452,14 +459,14 @@ function HireADesignerPageContent() {
                 throw new Error("Could not determine a numeric Shopify customer ID from your user account or URL.");
             }
             
-            if (!formState.selectedProduct?.variants.edges[0]?.node.id) {
+            if (!formState.selectedVariantId) {
                 throw new Error("Selected product does not have a valid variant ID.");
             }
 
             const draftOrderResult = await createDraftOrderFlow({
                 designRequestId,
                 customerId: shopifyCustomerIdForOrder, 
-                variantId: formState.selectedProduct!.variants.edges[0]!.node.id,
+                variantId: formState.selectedVariantId,
                 fileUrls: uploadedFileUrls,
             });
 
@@ -549,6 +556,8 @@ function HireADesignerPageContent() {
                              <ProductSelector
                                 selectedProduct={formState.selectedProduct}
                                 onProductSelect={handleProductSelect}
+                                selectedVariantId={formState.selectedVariantId}
+                                onVariantSelect={handleVariantSelect}
                              />
                         </div>
                         
@@ -808,7 +817,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
-
-    
