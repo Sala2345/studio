@@ -20,6 +20,7 @@ import { createDraftOrderFlow } from '@/ai/flows/create-draft-order';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
 import { StylePreference } from '@/components/style-preference';
+import { ColorPreference } from '@/components/color-preference';
 
 const designSteps = [
     {
@@ -585,6 +586,10 @@ function HireADesignerPageContent() {
                                 onContactModeChange={(value) => setFormState(prev => ({...prev, contactMode: value}))}
                                 onStyleChange={(value) => setFormState(prev => ({...prev, designStyle: value}))}
                             />
+                        </div>
+
+                        <div className="my-10">
+                            <ColorPreference onChange={(colors) => setFormState(prev => ({ ...prev, colors }))} />
                         </div>
                         
                         {/* File Upload Section */}
