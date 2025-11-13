@@ -99,57 +99,47 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
           onValueChange={handleContactModeChange}
           className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-[680px]"
         >
-          <div className="relative">
+          <Label 
+            htmlFor="contact-email"
+            className={cn(
+              "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
+              contactMode === 'email' ? 'border-primary' : 'border-border hover:border-primary'
+            )}
+          >
             <RadioGroupItem 
               value="email" 
               id="contact-email" 
-              className="sr-only peer"
+              className="sr-only"
             />
-            <Label 
-              htmlFor="contact-email"
-              className={cn(
-                "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
-                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-primary"
-              )}
-            >
-              <div className={cn(
-                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200 flex items-center justify-center",
-                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border"
-              )}>
-                <div className={cn(
-                  "w-full h-full bg-primary rounded-full transition-transform scale-0",
-                  "peer-data-[state=checked]:scale-100"
-                  )} />
-              </div>
-              <span className="text-sm font-normal text-foreground">Email</span>
-            </Label>
-          </div>
+             <span className={cn(
+              "w-[20px] h-[20px] border-2 rounded-full flex items-center justify-center transition-all duration-200",
+              contactMode === 'email' ? 'border-primary bg-primary' : 'border-border bg-background'
+            )}>
+              {contactMode === 'email' && <span className="w-[8px] h-[8px] bg-white rounded-full" />}
+            </span>
+            <span className="text-sm font-normal text-foreground">Email</span>
+          </Label>
 
-          <div className="relative">
+          <Label 
+            htmlFor="contact-call"
+            className={cn(
+              "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
+              contactMode === 'call' ? 'border-primary' : 'border-border hover:border-primary'
+            )}
+          >
             <RadioGroupItem 
               value="call" 
               id="contact-call" 
-              className="sr-only peer"
+              className="sr-only"
             />
-            <Label 
-              htmlFor="contact-call"
-               className={cn(
-                "flex items-center gap-3 px-5 py-4 border-2 rounded-lg cursor-pointer transition-all duration-200 bg-background",
-                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border peer-data-[state=unchecked]:hover:border-primary"
-              )}
-            >
-              <div className={cn(
-                "w-[18px] h-[18px] border-2 rounded-full relative flex-shrink-0 transition-all duration-200 flex items-center justify-center",
-                "peer-data-[state=checked]:border-primary peer-data-[state=unchecked]:border-border"
-              )}>
-                 <div className={cn(
-                  "w-full h-full bg-primary rounded-full transition-transform scale-0",
-                  "peer-data-[state=checked]:scale-100"
-                  )} />
-              </div>
-              <span className="text-sm font-normal text-foreground">Call</span>
-            </Label>
-          </div>
+            <span className={cn(
+              "w-[20px] h-[20px] border-2 rounded-full flex items-center justify-center transition-all duration-200",
+              contactMode === 'call' ? 'border-primary bg-primary' : 'border-border bg-background'
+            )}>
+              {contactMode === 'call' && <span className="w-[8px] h-[8px] bg-white rounded-full" />}
+            </span>
+            <span className="text-sm font-normal text-foreground">Call</span>
+          </Label>
         </RadioGroup>
       </div>
 
