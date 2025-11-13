@@ -19,8 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { createDraftOrderFlow } from '@/ai/flows/create-draft-order';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import Image from 'next/image';
+import { StylePreference } from '@/components/style-preference';
 
 const designSteps = [
     {
@@ -61,40 +60,6 @@ interface FormState {
     inspirationLinks: string[];
     shopifyCustomerId?: string;
 }
-
-const styleOptions = [
-    {
-        id: 'clean-minimal',
-        title: 'Clean & Minimal',
-        description: 'Minimal yet impactful, embracing modern simplicity with style.',
-        images: ['101', '102']
-    },
-    {
-        id: 'elegant-formal',
-        title: 'Elegant & Formal',
-        description: 'Elegance with a formal touch, perfect harmony of poise, grace.',
-        images: ['103', '104']
-    },
-    {
-        id: 'typography',
-        title: 'Typography',
-        description: 'Typography with blending elegance, merging style, clarity.',
-        images: ['105', '106']
-    },
-    {
-        id: 'fun-whimsical',
-        title: 'Fun & Whimsical',
-        description: 'Playful & Lively, where creativity meets carefree charm.',
-        images: ['107', '108']
-    },
-    {
-        id: 'let-expert-decide',
-        title: 'Let The Expert Decide',
-        description: 'Trust the expert to choose the best, tailored to your needs with.',
-        images: ['109']
-    },
-]
-
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
@@ -615,94 +580,13 @@ function HireADesignerPageContent() {
                             </div>
                         </div>
 
-                         {/* Contact Mode Section */}
-                        <div className="mt-10 mb-10">
-                            <h2 className="text-lg font-medium text-gray-800">
-                                What's your preferred mode of contact?
-                                <span className="text-destructive ml-1">*</span>
-                            </h2>
-                            <p className="text-sm text-gray-600 mt-2 mb-4">How would you like us to contact you?</p>
-
-                            <RadioGroup
-                                value={formState.contactMode}
-                                onValueChange={(value) => setFormState(prev => ({ ...prev, contactMode: value }))}
-                                className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl"
-                            >
-                                <div className="relative">
-                                    <RadioGroupItem value="email" id="contact-email" className="sr-only peer" />
-                                    <Label
-                                        htmlFor="contact-email"
-                                        className="flex items-center gap-3 p-5 border-2 border-border rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
-                                    >
-                                        <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
-                                             <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
-                                        </div>
-                                        <span className="text-base font-medium text-foreground">Email</span>
-                                    </Label>
-                                </div>
-                                <div className="relative">
-                                    <RadioGroupItem value="call" id="contact-call" className="sr-only peer" />
-                                    <Label
-                                        htmlFor="contact-call"
-                                        className="flex items-center gap-3 p-5 border-2 border-border rounded-lg cursor-pointer transition-all bg-background peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
-                                    >
-                                        <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
-                                            <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
-                                        </div>
-                                        <span className="text-base font-medium text-foreground">Call</span>
-                                    </Label>
-                                </div>
-                            </RadioGroup>
+                        <div className="my-10">
+                            <StylePreference
+                                onContactModeChange={(value) => setFormState(prev => ({...prev, contactMode: value}))}
+                                onStyleChange={(value) => setFormState(prev => ({...prev, designStyle: value}))}
+                            />
                         </div>
                         
-                         {/* Style Selection Section */}
-                        <div className="mb-10">
-                            <h2 className="text-lg font-medium text-gray-800">
-                                What style would you like?
-                                <span className="text-gray-500 font-normal text-base ml-1">(optional)</span>
-                            </h2>
-                            <RadioGroup 
-                                value={formState.designStyle}
-                                onValueChange={(value) => setFormState(prev => ({ ...prev, designStyle: value }))}
-                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mt-6"
-                            >
-                                {styleOptions.map((style) => (
-                                <div key={style.id}>
-                                    <RadioGroupItem value={style.id} id={`style-${style.id}`} className="sr-only peer" />
-                                    <Label 
-                                        htmlFor={`style-${style.id}`} 
-                                        className="block cursor-pointer rounded-xl border-2 border-border bg-background transition-all hover:border-muted-foreground hover:-translate-y-0.5 hover:shadow-md peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-red-500/5 overflow-hidden"
-                                    >
-                                        <div className="aspect-square bg-gray-100 p-4">
-                                            <div className="flex h-full w-full items-stretch justify-center gap-2">
-                                                {style.images.map((seed, index) => (
-                                                     <div key={index} className="relative w-full h-full">
-                                                        <Image
-                                                            src={`https://picsum.photos/seed/${seed}/300/300`}
-                                                            alt={style.title}
-                                                            fill
-                                                            className="rounded-md object-cover shadow-sm"
-                                                        />
-                                                     </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="p-4">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                 <div className="w-5 h-5 border-2 border-border rounded-full flex-shrink-0 relative peer-data-[state=checked]:border-primary">
-                                                    <div className="absolute inset-0.5 bg-primary rounded-full scale-0 peer-data-[state=checked]:scale-100 transition-transform"></div>
-                                                </div>
-                                                <h3 className="font-semibold text-base text-gray-800">{style.title}</h3>
-                                            </div>
-                                            <p className="text-sm text-gray-600 leading-snug">{style.description}</p>
-                                        </div>
-                                    </Label>
-                                </div>
-                                ))}
-                            </RadioGroup>
-                        </div>
-
-
                         {/* File Upload Section */}
                         <div className="mt-10">
                             <Label className="text-lg font-medium text-gray-800 mb-2 block">
@@ -778,6 +662,10 @@ function HireADesignerPageContent() {
                                     <div className="flex justify-between items-center">
                                         <span className="text-muted-foreground">Contact Mode:</span>
                                         <span className="font-medium capitalize">{formState.contactMode ? formState.contactMode : "Not Selected"}</span>
+                                    </div>
+                                     <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Style:</span>
+                                        <span className="font-medium capitalize">{formState.designStyle ? formState.designStyle.replace(/-/g, ' ') : "Not Selected"}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
                                         <span className="text-muted-foreground">Files:</span>
