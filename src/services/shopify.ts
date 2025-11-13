@@ -59,6 +59,13 @@ export async function getProducts(query?: string) {
                   currencyCode
                 }
               }
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                  }
+                }
+              }
             }
           }
         }
@@ -70,6 +77,7 @@ export async function getProducts(query?: string) {
   const data = await shopifyFetch(graphqlQuery);
   return data?.products?.edges.map((edge: any) => edge.node) || data;
 }
+
 
 export async function createPage(title: string, bodyHtml: string) {
     const graphqlQuery = {
@@ -125,4 +133,35 @@ export async function updateProduct(productId: string, productInput: any) {
         }
     };
     return shopifyFetch(graphqlQuery);
+}
+
+
+export async function createDraftOrder(customerId: string, variantId: string, customAttributes: {key: string, value: string}[]) {
+  const graphqlQuery = {
+    query: `
+      mutation draftOrderCreate($input: DraftOrderInput!) {
+        draftOrderCreate(input: $input) {
+          draftOrder {
+            id
+            invoiceUrl
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `,
+    variables: {
+      input: {
+        customerId: `gid://shopify/Customer/${customerId}`,
+        lineItems: [{
+          variantId: variantId,
+          quantity: 1
+        }],
+        customAttributes: customAttributes
+      }
+    }
+  };
+  return shopifyFetch(graphqlQuery);
 }

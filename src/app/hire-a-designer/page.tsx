@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -6,9 +5,16 @@ import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Mic, Play, Pause, Trash2, Download } from 'lucide-react';
+import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Circle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+import { useUser, useAuth } from '@/firebase';
+import { initiateEmailSignIn, initiateEmailSignUp } from '@/firebase/non-blocking-login';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { Progress } from '@/components/ui/progress';
 
 const designSteps = [
     {
@@ -32,6 +38,15 @@ type Recording = {
     duration: number;
 };
 
+type UploadedFile = {
+    file: File;
+    id: string;
+    progress: number;
+    url?: string;
+    error?: string;
+};
+
+
 export default function HireADesignerPage() {
     const [description, setDescription] = useState('');
     const [recordings, setRecordings] = useState<Recording[]>([]);
@@ -39,18 +54,41 @@ export default function HireADesignerPage() {
     const [recordingTime, setRecordingTime] = useState(0);
     const [playingId, setPlayingId] = useState<number | null>(null);
 
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const [formState, setFormState] = useState({
+        selectedProduct: null,
+        designDescription: '',
+        contactMode: '',
+        designStyle: '',
+        colors: '',
+        inspirationLinks: [''],
+    });
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submissionError, setSubmissionError] = useState<string | null>(null);
+    const [submissionSuccess, setSubmissionSuccess] = useState(false);
+
     const { toast } = useToast();
+    const { user, isUserLoading } = useUser();
+    const auth = useAuth();
+    const firestore = useFirestore();
+
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recordingStartTimeRef = useRef<number>(0);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         if (e.target.value.length <= 500) {
             setDescription(e.target.value);
+            setFormState(prev => ({ ...prev, designDescription: e.target.value }));
         }
     };
 
+    // Voice note functions
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -151,13 +189,158 @@ export default function HireADesignerPage() {
     };
 
     useEffect(() => {
-        // Cleanup audio object on component unmount
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
             }
         };
     }, []);
+
+    // File Upload Functions
+    const handleFileSelect = (files: FileList | null) => {
+        if (!files) return;
+        const newFiles = Array.from(files).map(file => ({
+            file,
+            id: `${file.name}-${Date.now()}`,
+            progress: 0,
+        }));
+        setUploadedFiles(prev => [...prev, ...newFiles]);
+    };
+
+    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFileSelect(e.dataTransfer.files);
+            e.dataTransfer.clearData();
+        }
+    };
+
+    const removeFile = (id: string) => {
+        setUploadedFiles(files => files.filter(f => f.id !== id));
+    };
+
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+    
+    // Form submission
+    const handleSubmit = async () => {
+        if (!user) {
+            toast({ variant: 'destructive', title: 'You must be logged in to submit a request.' });
+            return;
+        }
+
+        const validationErrors = [];
+        if (!formState.selectedProduct) validationErrors.push('Please select a product.');
+        if (!formState.designDescription) validationErrors.push('Please provide a design description.');
+        if (!formState.contactMode) validationErrors.push('Please select a contact method.');
+        
+        if (validationErrors.length > 0) {
+            setSubmissionError(validationErrors.join(' '));
+            return;
+        }
+        
+        setSubmissionError(null);
+        setIsSubmitting(true);
+
+        try {
+            const storage = getStorage();
+            const designRequestId = doc(collection(firestore, 'ids')).id;
+            
+            // 1. Upload files to Firebase Storage
+            const fileUploadPromises = uploadedFiles.map(async (fileToUpload) => {
+                const filePath = `design_requests/${user.uid}/${designRequestId}/${fileToUpload.file.name}`;
+                const storageRef = ref(storage, filePath);
+                const uploadTask = uploadBytesResumable(storageRef, fileToUpload.file);
+
+                return new Promise<string>((resolve, reject) => {
+                    uploadTask.on('state_changed',
+                        (snapshot) => {
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            setUploadedFiles(prevFiles =>
+                                prevFiles.map(f =>
+                                    f.id === fileToUpload.id ? { ...f, progress } : f
+                                )
+                            );
+                        },
+                        (error) => {
+                            setUploadedFiles(prevFiles =>
+                                prevFiles.map(f =>
+                                    f.id === fileToUpload.id ? { ...f, error: error.message } : f
+                                )
+                            );
+                            reject(error);
+                        },
+                        async () => {
+                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                            setUploadedFiles(prevFiles =>
+                                prevFiles.map(f =>
+                                    f.id === fileToUpload.id ? { ...f, url: downloadURL, progress: 100 } : f
+                                )
+                            );
+                            resolve(downloadURL);
+                        }
+                    );
+                });
+            });
+
+            const uploadedFileUrls = await Promise.all(fileUploadPromises);
+
+            // 2. Create Firestore document
+            const designRequestRef = doc(firestore, 'customers', user.uid, 'designRequests', designRequestId);
+            await setDoc(designRequestRef, {
+                ...formState,
+                id: designRequestId,
+                customerId: user.uid,
+                fileUrls: uploadedFileUrls,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+
+            // 3. Create Shopify Draft Order (Server-side action)
+            // This would typically be a call to a Next.js API route or a Genkit flow
+            // For now, we'll simulate success
+            // await createShopifyDraftOrder(data); 
+
+            setSubmissionSuccess(true);
+        } catch (error: any) {
+            console.error("Submission failed:", error);
+            setSubmissionError(error.message || 'An unknown error occurred during submission.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+
+    if (submissionSuccess) {
+        return (
+            <div className="bg-background">
+                <div className="max-w-screen-xl mx-auto py-16 px-5 font-sans">
+                    <Card className="p-6 md:p-12 text-center bg-green-50 border-2 border-green-500">
+                        <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
+                        <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
+                        <p className="text-lg text-gray-700">Thank you for your design request. We've received all your information and files.</p>
+                        <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you within 24 hours at <strong>{user?.email}</strong>.</p>
+                    </Card>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="bg-background">
@@ -179,7 +362,65 @@ export default function HireADesignerPage() {
                                 </div>
                             ))}
                         </div>
+                        
+                        {/* File Upload Section */}
+                        <div className="mt-10">
+                            <h2 className="text-lg font-medium text-gray-800 mb-2 block">
+                                What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
+                            </h2>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Add logos and images, as well as any references you'd like us to look at.
+                            </p>
+                            <div className="max-w-3xl">
+                                <div
+                                    className={cn(
+                                        "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors",
+                                        isDragging ? "border-primary bg-primary/10" : "border-border hover:border-muted-foreground"
+                                    )}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    onDragEnter={handleDragEnter}
+                                    onDragOver={handleDragEnter}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                >
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(e) => handleFileSelect(e.target.files)}
+                                        accept=".pdf,.png,.jpeg,.jpg,.ai,.psd,.tif,.cdr,.eps,.gif,.doc,.docx,.bpm"
+                                    />
+                                    <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
+                                    <p className="mt-4 text-foreground">Click to browse, or drag and drop a file here</p>
+                                    <p className="mt-2 text-xs text-muted-foreground">Max file size 400MB. Supported types: pdf, png, jpg, ai, psd, etc.</p>
+                                </div>
+                                
+                                {uploadedFiles.length > 0 && (
+                                    <div className="mt-6">
+                                        <h3 className="font-semibold mb-2">Uploaded Files:</h3>
+                                        <div className="space-y-2">
+                                            {uploadedFiles.map(f => (
+                                                <Card key={f.id} className="flex items-center p-3 gap-3">
+                                                    <FileIcon className="h-8 w-8 text-muted-foreground" />
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-medium truncate">{f.file.name}</p>
+                                                        <p className="text-xs text-muted-foreground">{formatFileSize(f.file.size)}</p>
+                                                        {f.progress < 100 && <Progress value={f.progress} className="h-1 mt-1" />}
+                                                        {f.error && <p className="text-xs text-destructive mt-1">{f.error}</p>}
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFile(f.id)}>
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
+                        {/* Form Section */}
                         <div className="mt-10">
                             <Label htmlFor="design-description" className="text-lg font-medium text-gray-800 mb-2 block">
                                 Describe your design in a few words
@@ -241,6 +482,55 @@ export default function HireADesignerPage() {
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Submission Section */}
+                        <div className="mt-12 max-w-md mx-auto text-center">
+                             <div className="bg-muted p-6 rounded-lg mb-6">
+                                <h3 className="font-semibold text-lg mb-4">Review Your Request</h3>
+                                <div className="space-y-3 text-left">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Product:</span>
+                                        <span className="font-medium">{formState.selectedProduct ? "Selected" : "Not Selected"}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Description:</span>
+                                        <span className="font-medium">{formState.designDescription ? "Provided" : "Not Provided"}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Contact Mode:</span>
+                                        <span className="font-medium">{formState.contactMode ? formState.contactMode : "Not Selected"}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Files:</span>
+                                        <span className="font-medium">{uploadedFiles.length} file(s)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {user && (
+                                <>
+                                    <Button onClick={handleSubmit} disabled={isSubmitting || isUserLoading} size="lg" className="w-full bg-red-600 hover:bg-red-700 text-lg">
+                                        {isSubmitting ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                                                Submitting...
+                                            </>
+                                        ) : 'Hire a Designer'}
+                                    </Button>
+                                    {submissionError && <div className="mt-4 text-destructive bg-destructive/10 p-3 rounded-md">{submissionError}</div>}
+                                </>
+                            )}
+                             {!user && !isUserLoading && (
+                                <Card className="p-6 bg-amber-50 border-amber-300 text-center">
+                                    <h4 className="font-bold text-lg text-amber-900 mb-2">Create an Account to Continue</h4>
+                                    <p className="text-sm text-amber-800">To submit your request, please log in or create an account. This ensures we can contact you about your design.</p>
+                                    <div className="mt-4 flex gap-4 justify-center">
+                                        <Button variant="outline">Log In</Button>
+                                        <Button className="bg-red-600 hover:bg-red-700">Create Account</Button>
+                                    </div>
+                                </Card>
+                            )}
                         </div>
                     </main>
 

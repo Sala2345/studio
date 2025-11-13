@@ -8,6 +8,7 @@ import {
   getProducts,
   createPage,
   updateProduct,
+  createDraftOrder,
 } from '@/services/shopify';
 import { z } from 'zod';
 
@@ -93,4 +94,24 @@ Request: ${input.request}`,
 
     return { liquidCode: result.text };
   }
+);
+
+export const createShopifyDraftOrder = ai.defineTool(
+    {
+        name: 'createShopifyDraftOrder',
+        description: 'Creates a new draft order in Shopify for a specific customer and product variant.',
+        inputSchema: z.object({
+            customerId: z.string().describe('The Shopify customer ID (numeric part only, e.g., "12345").'),
+            variantId: z.string().describe('The Shopify product variant ID (e.g., "gid://shopify/ProductVariant/67890").'),
+            customAttributes: z.array(z.object({
+                key: z.string(),
+                value: z.string(),
+            })).describe('Custom attributes to add to the order, like design request IDs or file links.'),
+        }),
+        outputSchema: z.any(),
+    },
+    async (input) => {
+        console.log(`Creating draft order for customer: ${input.customerId}`);
+        return createDraftOrder(input.customerId, input.variantId, input.customAttributes);
+    }
 );
