@@ -1,0 +1,233 @@
+{
+  "entities": {
+    "DesignRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DesignRequest",
+      "type": "object",
+      "description": "Represents a design request submitted by a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the design request."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N DesignRequest)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "ID of the product selected for the design request."
+        },
+        "productTitle": {
+          "type": "string",
+          "description": "Title of the product selected for the design request."
+        },
+        "designDescription": {
+          "type": "string",
+          "description": "Detailed description of the design requirements provided by the customer."
+        },
+        "contactMode": {
+          "type": "string",
+          "description": "Preferred contact method selected by the customer (e.g., email, phone)."
+        },
+        "designStyle": {
+          "type": "string",
+          "description": "Preferred design style selected by the customer."
+        },
+        "colors": {
+          "type": "string",
+          "description": "Color preferences specified by the customer."
+        },
+        "inspirationLinks": {
+          "type": "array",
+          "description": "List of URLs provided by the customer as inspiration for the design.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fileIds": {
+          "type": "array",
+          "description": "References to Files. (Relationship: DesignRequest 1:N File)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "driveFolderLink": {
+          "type": "string",
+          "description": "Link to the Google Drive folder containing the uploaded files for this request."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the design request was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the design request was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "customerId",
+        "productId",
+        "designDescription",
+        "contactMode"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer submitting design requests. Data synced from Shopify.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the customer.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the customer."
+        },
+        "shopifyCustomerId": {
+          "type": "string",
+          "description": "The ID of the customer from shopify"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the customer profile was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the customer profile was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name",
+        "shopifyCustomerId"
+      ]
+    },
+    "File": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "File",
+      "type": "object",
+      "description": "Represents a file uploaded by a customer for a design request, stored in Firebase Storage.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the file."
+        },
+        "designRequestId": {
+          "type": "string",
+          "description": "Reference to DesignRequest. (Relationship: DesignRequest 1:N File)"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "Original name of the uploaded file."
+        },
+        "fileSize": {
+          "type": "number",
+          "description": "Size of the file in bytes."
+        },
+        "fileType": {
+          "type": "string",
+          "description": "MIME type of the file (e.g., image/jpeg, application/pdf)."
+        },
+        "storageUrl": {
+          "type": "string",
+          "description": "URL of the file stored in Firebase Storage."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the file was uploaded.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the file metadata was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "designRequestId",
+        "fileName",
+        "fileSize",
+        "fileType",
+        "storageUrl"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Stores customer information synced from Shopify. The customerId is the document ID.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}/designRequests/{designRequestId}",
+        "definition": {
+          "entityName": "DesignRequest",
+          "schema": {
+            "$ref": "#/backend/entities/DesignRequest"
+          },
+          "description": "Stores design requests submitted by customers. Includes denormalized 'customerId' for authorization independence.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for the customer."
+            },
+            {
+              "name": "designRequestId",
+              "description": "Unique identifier for the design request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/files/{fileId}",
+        "definition": {
+          "entityName": "File",
+          "schema": {
+            "$ref": "#/backend/entities/File"
+          },
+          "description": "Stores metadata about uploaded files. Includes 'designRequestId' for associating files with design requests.",
+          "params": [
+            {
+              "name": "fileId",
+              "description": "Unique identifier for the file."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to securely manage design requests, customer data, and uploaded files. It emphasizes authorization independence and facilitates secure list operations. The design leverages path-based ownership for customer-owned data and denormalization to avoid hierarchical authorization dependencies.\n\n*   `/customers/{customerId}`: Stores customer information, synced from Shopify. Customer ID is used as the document ID.\n*   `/customers/{customerId}/designRequests/{designRequestId}`: Stores design requests submitted by customers. This subcollection uses path-based ownership, ensuring that only the customer can access their own design requests.\n*   `/files/{fileId}`: Stores metadata about uploaded files. Each file document includes the `designRequestId` to associate it with a specific design request.  Authorization is managed through rules that check the associated customer ID.\n\n**Authorization Independence:** The `designRequests` subcollection denormalizes the `customerId` from the parent `customer` document. This enables direct authorization checks within the `designRequests` collection without needing to perform `get()` operations to retrieve parent data.  Files also have the designRequestId so that rules can easily validate its authenticity.\n\n**QAPs Support:**\n\n*   Secure List Operations: The path-based ownership (`/customers/{customerId}/designRequests/{designRequestId}`) ensures that listing design requests under a customer ID is secure. Rules can efficiently filter by `request.auth.uid == customerId`.\n*   The `/files` collection does not store confidential information, so it can be listed safely."
+  }
+}
