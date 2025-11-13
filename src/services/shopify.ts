@@ -45,7 +45,7 @@ async function shopifyFetch(graphqlQuery: { query: string; variables?: object })
 
 export async function getProducts(query?: string) {
   // Always filter for active products, exclude 'Inkybay' vendor, and combine with the user's search query if provided.
-  let combinedQuery = "status:ACTIVE AND NOT vendor:'Inkybay'";
+  let combinedQuery = "status:ACTIVE AND NOT vendor:'Inkybay' AND NOT tag:'inkybay_custom'";
   if (query) {
     combinedQuery += ` AND (${query})`;
   }
