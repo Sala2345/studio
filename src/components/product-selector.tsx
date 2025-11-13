@@ -127,9 +127,9 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                         />
                         <div className="flex-1">
                             <p className="font-semibold">{selectedProduct.title}</p>
-                            <p className="font-bold text-primary">{new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedProduct.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(selectedProduct.priceRangeV2.minVariantPrice.amount))}</p>
+                            <p className="font-bold text-destructive">{new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedProduct.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(selectedProduct.priceRangeV2.minVariantPrice.amount))}</p>
                         </div>
-                        <Button onClick={handleClearSelection} className="bg-primary text-primary-foreground hover:bg-primary/90">Change</Button>
+                        <Button onClick={handleClearSelection} className="bg-[#ED1C24] text-white hover:bg-[#ED1C24] hover:text-white">Change</Button>
                     </div>
                 </CardContent>
             </Card>
@@ -184,7 +184,7 @@ export function ProductSelector({ selectedProduct, onProductSelect }: ProductSel
                                     </div>
                                     <div className="p-4">
                                         <h3 className="font-semibold text-sm truncate">{product.title}</h3>
-                                        <p className="font-bold text-primary">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(product.priceRangeV2.minVariantPrice.amount))}</p>
+                                        <p className="font-bold text-destructive">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(product.priceRangeV2.minVariantPrice.amount))}</p>
                                     </div>
                                 </Card>
                             ))}
