@@ -40,14 +40,6 @@ export interface ShopifyProduct {
         url: string;
         altText: string;
     };
-    metafields: {
-        edges: {
-            node: {
-                key: string;
-                value: string;
-            }
-        }[];
-    };
 }
 
 interface ProductSelectorProps {
@@ -222,14 +214,6 @@ export function ProductSelector({ selectedProduct, onProductSelect, selectedVari
                                     <div className="p-4 flex flex-col flex-grow">
                                         <h3 className="font-semibold text-sm truncate">{product.title}</h3>
                                         <p className="font-bold text-destructive text-lg">{new Intl.NumberFormat('en-US', { style: 'currency', currency: product.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(product.priceRangeV2.minVariantPrice.amount))}</p>
-                                        <div className="text-xs text-muted-foreground mt-2 flex-grow">
-                                          {product.metafields.edges.find(e => e.node.key === 'width')?.node.value && (
-                                              <p>W: {product.metafields.edges.find(e => e.node.key === 'width')?.node.value}"</p>
-                                          )}
-                                          {product.metafields.edges.find(e => e.node.key === 'height')?.node.value && (
-                                              <p>H: {product.metafields.edges.find(e => e.node.key === 'height')?.node.value}"</p>
-                                          )}
-                                        </div>
                                     </div>
                                 </Card>
                             ))}

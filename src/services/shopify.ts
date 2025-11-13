@@ -80,14 +80,6 @@ export async function getProducts(query?: string) {
                   }
                 }
               }
-              metafields(first: 5, namespace: "custom") {
-                edges {
-                  node {
-                    key
-                    value
-                  }
-                }
-              }
             }
           }
         }

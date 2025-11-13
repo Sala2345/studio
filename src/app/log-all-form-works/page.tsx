@@ -26,8 +26,6 @@ interface DesignRequest {
   phoneNumber?: string;
   productTitle: string;
   selectedVariantTitle?: string;
-  width?: string;
-  height?: string;
   designDescription: string;
   contactMode: string;
   designStyle?: string;
@@ -122,11 +120,6 @@ function LogAllFormWorksPage() {
                           <div>{request.productTitle || 'N/A'}</div>
                           {request.selectedVariantTitle && (
                               <div className="text-sm text-muted-foreground font-medium">{request.selectedVariantTitle}</div>
-                          )}
-                          {(request.width || request.height) && (
-                            <div className="text-sm text-muted-foreground">
-                                {request.width || 'N/A'}" W x {request.height || 'N/A'}" H
-                            </div>
                           )}
                       </TableCell>
                       <TableCell className="max-w-xs truncate">{request.designDescription}</TableCell>
