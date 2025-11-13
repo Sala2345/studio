@@ -36,6 +36,9 @@ interface DesignRequest {
   colors?: string;
   fileUrls: string[];
   inspirationLinks: string[];
+  status?: 'pending' | 'files-uploaded' | 'order-error' | 'complete' | 'upload-error';
+  invoiceUrl?: string;
+  orderError?: string;
   createdAt: {
     seconds: number;
     nanoseconds: number;
@@ -104,7 +107,8 @@ function LogAllFormWorksPage() {
                     <TableHead className="w-[180px]">Date Submitted</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Product</TableHead>
-                    <TableHead className="w-[120px]">Description</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-center w-[100px]">Details</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -131,6 +135,17 @@ function LogAllFormWorksPage() {
                           )}
                       </TableCell>
                       <TableCell className="max-w-xs truncate">{request.designDescription}</TableCell>
+                       <TableCell>
+                        <Badge variant={
+                            request.status === 'complete' ? 'default' 
+                            : request.status === 'pending' || request.status === 'files-uploaded' ? 'secondary'
+                            : 'destructive'
+                        } className="capitalize">
+                            {request.status?.replace(/-/g, ' ') || 'Unknown'}
+                        </Badge>
+                        {request.invoiceUrl && <Link href={request.invoiceUrl} target="_blank" className="text-xs text-primary block hover:underline">View Invoice</Link>}
+                        {request.orderError && <div className="text-xs text-destructive">{request.orderError}</div>}
+                      </TableCell>
                       <TableCell className="text-center">
                         <Accordion type="single" collapsible className="w-full">
                             <AccordionItem value="item-1" className="border-b-0">

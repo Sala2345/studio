@@ -8,12 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle } from 'lucide-react';
+import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Progress } from '@/components/ui/progress';
 import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
@@ -24,6 +24,7 @@ import { ColorPreference } from '@/components/color-preference';
 import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
+import imageCompression from 'browser-image-compression';
 
 
 const designSteps = [
@@ -368,6 +369,68 @@ function HireADesignerPageContent() {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
+
+    const processAndUploadFiles = async (designRequestRef: any, customerId: string, designRequestId: string, filesToUpload: UploadableFile[]) => {
+        const storage = getStorage();
+
+        for (const fileToUpload of filesToUpload) {
+            try {
+                let fileToProcess = fileToUpload.file;
+                // Compress images before upload
+                if (fileToProcess.type.startsWith('image/') && fileToProcess.size > 1024 * 1024) { // Only compress images > 1MB
+                    try {
+                        const compressedFile = await imageCompression(fileToProcess, {
+                            maxSizeMB: 5,
+                            maxWidthOrHeight: 1920,
+                            useWebWorker: true,
+                        });
+                        fileToProcess = compressedFile;
+                         toast({
+                            title: `Image compressed: ${fileToProcess.name}`,
+                            description: `Original size: ${formatFileSize(fileToUpload.file.size)}, New size: ${formatFileSize(compressedFile.size)}`,
+                        });
+                    } catch (compressionError) {
+                        console.warn(`Could not compress image ${fileToUpload.file.name}. Uploading original.`, compressionError);
+                        // If compression fails, upload the original file.
+                    }
+                }
+                
+                const filePath = `design_requests/${customerId}/${designRequestId}/${fileToProcess.name}`;
+                const storageRef = ref(storage, filePath);
+                const uploadTask = uploadBytesResumable(storageRef, fileToProcess);
+
+                uploadTask.on('state_changed',
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        setUploadedFiles(prevFiles =>
+                            prevFiles.map(f =>
+                                f.id === fileToUpload.id ? { ...f, progress } : f
+                            )
+                        );
+                    },
+                    async (error) => {
+                        console.error(`Upload failed for ${fileToUpload.file.name}:`, error);
+                        await updateDoc(designRequestRef, {
+                            status: 'upload-error',
+                            fileErrors: arrayUnion({ fileName: fileToUpload.file.name, error: error.message })
+                        });
+                    },
+                    async () => {
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                        await updateDoc(designRequestRef, {
+                            fileUrls: arrayUnion(downloadURL)
+                        });
+                    }
+                );
+            } catch (error) {
+                console.error(`Error processing file ${fileToUpload.file.name}:`, error);
+                 await updateDoc(designRequestRef, {
+                    status: 'upload-error',
+                    fileErrors: arrayUnion({ fileName: fileToUpload.file.name, error: (error as Error).message })
+                });
+            }
+        }
+    };
     
     const handleSubmit = async () => {
         if (!firestore) {
@@ -399,60 +462,9 @@ function HireADesignerPageContent() {
         setIsSubmitting(true);
 
         try {
-            const storage = getStorage();
             const designRequestId = doc(collection(firestore, 'ids')).id;
             const customerId = user?.uid || formState.email.replace(/[^a-zA-Z0-9]/g, '');
 
-            const allFilesToUpload: UploadableFile[] = [
-                ...uploadedFiles,
-                ...recordings.map(rec => ({
-                    file: new File([rec.blob], `voicenote-${rec.id}.webm`, { type: 'audio/webm' }),
-                    id: rec.id.toString(),
-                    progress: 0,
-                }))
-            ];
-            
-            setUploadedFiles(allFilesToUpload);
-
-            const fileUploadPromises = allFilesToUpload.map(async (fileToUpload) => {
-                const filePath = `design_requests/${customerId}/${designRequestId}/${fileToUpload.file.name}`;
-                const storageRef = ref(storage, filePath);
-                const uploadTask = uploadBytesResumable(storageRef, fileToUpload.file);
-
-                return new Promise<string>((resolve, reject) => {
-                    uploadTask.on('state_changed',
-                        (snapshot) => {
-                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                             setUploadedFiles(prevFiles =>
-                                prevFiles.map(f =>
-                                    f.id === fileToUpload.id ? { ...f, progress } : f
-                                )
-                            );
-                        },
-                        (error) => {
-                             setUploadedFiles(prevFiles =>
-                                prevFiles.map(f =>
-                                    f.id === fileToUpload.id ? { ...f, error: error.message } : f
-                                )
-                            );
-                            console.error(`Upload failed for ${fileToUpload.file.name}:`, error);
-                            reject(error);
-                        },
-                        async () => {
-                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                            setUploadedFiles(prevFiles =>
-                                prevFiles.map(f =>
-                                    f.id === fileToUpload.id ? { ...f, url: downloadURL, progress: 100 } : f
-                                )
-                            );
-                            resolve(downloadURL);
-                        }
-                    );
-                });
-            });
-
-            const uploadedFileUrls = await Promise.all(fileUploadPromises);
-            
             const customerRef = doc(firestore, 'customers', customerId);
             const customerData = {
                 id: customerId,
@@ -467,52 +479,93 @@ function HireADesignerPageContent() {
             await setDoc(customerRef, customerData, { merge: true });
 
             const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
-            const finalFormState = {
+             const preliminaryFormState = {
                 ...formState,
                 id: designRequestId,
                 customerId: customerId,
-                customerName: formState.name, // ensure customerName is on the log
+                customerName: formState.name,
                 productId: formState.selectedProduct?.id,
                 productTitle: formState.selectedProduct?.title,
                 shippingAddress: fullShippingAddress,
-                fileUrls: uploadedFileUrls,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
+                status: 'pending',
+                fileUrls: [], // Will be populated by background process
             };
-            // Clean up data for Firestore
-            delete (finalFormState as any).selectedProduct;
-            delete (finalFormState as any).name;
-            delete (finalFormState as any).shopifyCustomerId;
-            delete (finalFormState as any).streetAddress;
-            delete (finalFormState as any).city;
-            delete (finalFormState as any).province;
-            delete (finalFormState as any).postalCode;
+             // Clean up data for Firestore
+            delete (preliminaryFormState as any).selectedProduct;
+            delete (preliminaryFormState as any).name;
+            delete (preliminaryFormState as any).shopifyCustomerId;
+            delete (preliminaryFormState as any).streetAddress;
+            delete (preliminaryFormState as any).city;
+            delete (preliminaryFormState as any).province;
+            delete (preliminaryFormState as any).postalCode;
 
-            await setDoc(designRequestRef, finalFormState);
+            await setDoc(designRequestRef, preliminaryFormState);
 
-            // Now, automatically create the Shopify draft order
-            if (formState.selectedVariantId) {
-                const draftOrderResult = await createOrderFromLogFlow({ log: finalFormState as any });
-
-                if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
-                    console.warn("Could not create Shopify draft order:", draftOrderResult.error);
-                    // Don't throw, just log and continue. The main request is saved.
-                } else {
-                    setInvoiceUrl(draftOrderResult.invoiceUrl);
-                }
-            } else {
-                 console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
-            }
-            
+            // Show success message immediately
             setSubmissionSuccess(true);
+            setIsSubmitting(false); // Allow UI to update to success screen
+
+            // --- Start background processing ---
+
+            // 1. Files
+            const allFilesToUpload: UploadableFile[] = [
+                ...uploadedFiles,
+                ...recordings.map(rec => ({
+                    file: new File([rec.blob], `voicenote-${rec.id}.webm`, { type: 'audio/webm' }),
+                    id: rec.id.toString(),
+                    progress: 0,
+                }))
+            ];
+            if (allFilesToUpload.length > 0) {
+                 processAndUploadFiles(designRequestRef, customerId, designRequestId, allFilesToUpload)
+                    .then(() => updateDoc(designRequestRef, { status: 'files-uploaded' }))
+                    .catch(() => { /* Error is handled inside processAndUploadFiles */});
+            } else {
+                await updateDoc(designRequestRef, { status: 'files-uploaded' });
+            }
+
+            // 2. Shopify Order
+            if (formState.selectedVariantId) {
+                createOrderFromLogFlow({ log: preliminaryFormState as any })
+                    .then(async (draftOrderResult) => {
+                        if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
+                            console.warn("Could not create Shopify draft order:", draftOrderResult.error);
+                            await updateDoc(designRequestRef, { 
+                                status: 'order-error',
+                                orderError: draftOrderResult.error || 'Unknown Shopify error'
+                            });
+                        } else {
+                            setInvoiceUrl(draftOrderResult.invoiceUrl); // Still set for the UI
+                            await updateDoc(designRequestRef, { 
+                                status: 'complete',
+                                invoiceUrl: draftOrderResult.invoiceUrl,
+                                shopifyOrderId: draftOrderResult.orderId,
+                             });
+                        }
+                    })
+                    .catch(async (err) => {
+                        console.error("Flow execution failed:", err);
+                        await updateDoc(designRequestRef, { 
+                            status: 'order-error',
+                            orderError: (err as Error).message || 'Flow execution failed'
+                        });
+                    });
+            } else {
+                console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
+                await updateDoc(designRequestRef, { status: 'complete' }); // Complete if no order needed
+            }
+            // --- End background processing ---
+
 
         } catch (error: any) {
             console.error("Submission failed:", error);
             const errorMessage = error.message || 'An unknown error occurred during submission.';
             setSubmissionError(errorMessage);
-            toast({ variant: 'destructive', title: 'Submission Failed', description: errorMessage });
-        } finally {
+            setSubmissionSuccess(false); // Ensure we don't show success screen on error
             setIsSubmitting(false);
+            toast({ variant: 'destructive', title: 'Submission Failed', description: errorMessage });
         }
     };
 
@@ -523,17 +576,22 @@ function HireADesignerPageContent() {
                     <Card className="p-6 md:p-12 text-center bg-green-50 border-2 border-green-500">
                         <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
-                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted and a draft order has been created.</p>
-                        <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
-                        {invoiceUrl && (
-                            <div className="mt-8">
-                                <p className="text-gray-600 mb-4">To complete your order, please proceed with the payment.</p>
+                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted.</p>
+                        <p className="text-lg text-gray-700 mt-2">File uploads and order processing are continuing in the background. Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
+                        {invoiceUrl ? (
+                             <div className="mt-8">
+                                <p className="text-gray-600 mb-4">Your draft order is ready. Please proceed with the payment.</p>
                                 <Button asChild size="lg">
                                     <a href={invoiceUrl} target="_blank" rel="noopener noreferrer">
                                         Pay Now
                                     </a>
                                 </Button>
                             </div>
+                        ) : (
+                             <div className="mt-8 text-center">
+                                <p className="text-gray-600 mb-4">We are generating your invoice...</p>
+                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                             </div>
                         )}
                     </Card>
                 </div>
@@ -742,14 +800,12 @@ function HireADesignerPageContent() {
                                                     <div className="flex-1 overflow-hidden">
                                                         <p className="text-sm font-medium truncate text-gray-800">{f.file.name}</p>
                                                         <p className="text-xs text-gray-500">{formatFileSize(f.file.size)}</p>
-                                                        {isSubmitting && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-2" />}
+                                                        {f.progress > 0 && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-2" />}
                                                         {f.error && <p className="text-xs text-destructive mt-1">{f.error}</p>}
                                                     </div>
-                                                    {!isSubmitting && (
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-500 hover:bg-red-100 hover:text-destructive" onClick={() => removeFile(f.id)}>
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                    )}
+                                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-500 hover:bg-red-100 hover:text-destructive" onClick={() => removeFile(f.id)}>
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
                                                 </Card>
                                             ))}
                                         </div>
@@ -801,7 +857,7 @@ function HireADesignerPageContent() {
                             
                             <Button onClick={handleSubmit} disabled={isSubmitting || isUserLoading} size="lg" className="hire-designer-btn w-full">
                                 {isSubmitting ? (
-                                    <div className="btn-loading"></div>
+                                    <Loader2 className="h-6 w-6 animate-spin" />
                                 ) : (
                                     <span className="btn-text">
                                         Hire a Designer
@@ -827,5 +883,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
