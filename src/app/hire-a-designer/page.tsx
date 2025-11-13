@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -18,6 +17,8 @@ import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Progress } from '@/components/ui/progress';
 import { createDraftOrderFlow } from '@/ai/flows/create-draft-order';
+import { ProductSelector } from '@/components/product-selector';
+import type { ShopifyProduct } from '@/components/product-selector';
 
 const designSteps = [
     {
@@ -50,7 +51,7 @@ interface FormState {
     name: string;
     email: string;
     phoneNumber: string;
-    selectedProduct: { id: string, variantId: string, title: string } | null;
+    selectedProduct: ShopifyProduct | null;
     designDescription: string;
     contactMode: string;
     designStyle: string;
@@ -74,7 +75,7 @@ function HireADesignerPageContent() {
         name: '',
         email: '',
         phoneNumber: '',
-        selectedProduct: null, // Example product
+        selectedProduct: null,
         designDescription: '',
         contactMode: 'email',
         designStyle: '',
@@ -398,6 +399,8 @@ function HireADesignerPageContent() {
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             };
+            delete (finalFormState as any).selectedProduct;
+
 
             await setDoc(designRequestRef, finalFormState);
 
@@ -409,11 +412,15 @@ function HireADesignerPageContent() {
             if (!shopifyCustomerIdForOrder) {
                 throw new Error("Could not determine a numeric Shopify customer ID from your user account or URL.");
             }
+            
+            if (!formState.selectedProduct?.variants.edges[0]?.node.id) {
+                throw new Error("Selected product does not have a valid variant ID.");
+            }
 
             const draftOrderResult = await createDraftOrderFlow({
                 designRequestId,
                 customerId: shopifyCustomerIdForOrder, 
-                variantId: formState.selectedProduct!.variantId,
+                variantId: formState.selectedProduct!.variants.edges[0]!.node.id,
                 fileUrls: uploadedFileUrls,
             });
 
@@ -497,6 +504,15 @@ function HireADesignerPageContent() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Product Selection Section */}
+                        <div className="mb-10">
+                             <ProductSelector
+                                selectedProduct={formState.selectedProduct}
+                                onProductSelect={(product) => setFormState(prev => ({...prev, selectedProduct: product}))}
+                             />
+                        </div>
+
 
                         {/* Form Section */}
                         <div className="mt-10">

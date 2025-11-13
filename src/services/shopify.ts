@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Service for interacting with the Shopify Admin API.
  */
@@ -59,6 +60,10 @@ export async function getProducts(query?: string) {
                   currencyCode
                 }
               }
+              featuredImage {
+                url
+                altText
+              }
               variants(first: 1) {
                 edges {
                   node {
@@ -75,7 +80,12 @@ export async function getProducts(query?: string) {
   };
 
   const data = await shopifyFetch(graphqlQuery);
-  return data?.products?.edges.map((edge: any) => edge.node) || data;
+   // Handle potential errors from shopifyFetch
+  if (data?.error) {
+    // Re-throw or handle as needed
+    throw new Error(data.details?.[0]?.message || data.error);
+  }
+  return data?.products?.edges.map((edge: any) => edge.node) || [];
 }
 
 
