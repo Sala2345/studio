@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -135,6 +135,17 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, [id]: value }));
     };
 
+    const handleContactModeChange = useCallback((value: string) => {
+        setFormState(prev => ({...prev, contactMode: value}));
+    }, []);
+
+    const handleStyleChange = useCallback((value: string) => {
+        setFormState(prev => ({...prev, designStyle: value}));
+    }, []);
+    
+    const handleColorChange = useCallback((colors: string) => {
+        setFormState(prev => ({ ...prev, colors }));
+    }, []);
 
     // Voice note functions
     const startRecording = async () => {
@@ -583,13 +594,13 @@ function HireADesignerPageContent() {
 
                         <div className="my-10">
                             <StylePreference
-                                onContactModeChange={(value) => setFormState(prev => ({...prev, contactMode: value}))}
-                                onStyleChange={(value) => setFormState(prev => ({...prev, designStyle: value}))}
+                                onContactModeChange={handleContactModeChange}
+                                onStyleChange={handleStyleChange}
                             />
                         </div>
 
                         <div className="my-10">
-                            <ColorPreference onChange={(colors) => setFormState(prev => ({ ...prev, colors }))} />
+                            <ColorPreference onChange={handleColorChange} />
                         </div>
                         
                         {/* File Upload Section */}
