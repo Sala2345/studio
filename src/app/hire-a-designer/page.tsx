@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -5,12 +6,10 @@ import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Circle, AlertTriangle } from 'lucide-react';
+import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { useUser, useAuth } from '@/firebase';
-import { initiateEmailSignIn, initiateEmailSignUp } from '@/firebase/non-blocking-login';
+import { useUser } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
@@ -36,7 +35,7 @@ type Recording = {
     duration: number;
 };
 
-type UploadedFile = {
+type UploadableFile = {
     file: File;
     id: string;
     progress: number;
@@ -52,20 +51,20 @@ export default function HireADesignerPage() {
     const [recordingTime, setRecordingTime] = useState(0);
     const [playingId, setPlayingId] = useState<number | null>(null);
 
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+    const [uploadedFiles, setUploadedFiles] = useState<UploadableFile[]>([]);
     const [isDragging, setIsDragging] = useState(false);
 
-    const [formState, setFormState] = useState<{
-        selectedProduct: { id: string, variantId: string } | null,
+    const [formState, setFormState<{
+        selectedProduct: { id: string, variantId: string, title: string } | null,
         designDescription: string;
         contactMode: string;
         designStyle: string;
         colors: string;
         inspirationLinks: string[];
     }>({
-        selectedProduct: null,
+        selectedProduct: null, // Example product
         designDescription: '',
-        contactMode: '',
+        contactMode: 'email',
         designStyle: '',
         colors: '',
         inspirationLinks: [''],
@@ -74,10 +73,10 @@ export default function HireADesignerPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
     const [submissionSuccess, setSubmissionSuccess] = useState(false);
+    const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
 
     const { toast } = useToast();
     const { user, isUserLoading } = useUser();
-    const auth = useAuth();
     const firestore = useFirestore();
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -97,7 +96,7 @@ export default function HireADesignerPage() {
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
             mediaRecorderRef.current = mediaRecorder;
             let audioChunks: Blob[] = [];
 
@@ -120,6 +119,7 @@ export default function HireADesignerPage() {
 
             mediaRecorder.start();
             setIsRecording(true);
+            setRecordingTime(0);
             recordingStartTimeRef.current = Date.now();
             timerIntervalRef.current = setInterval(() => {
                 setRecordingTime(prev => prev + 1);
@@ -142,7 +142,6 @@ export default function HireADesignerPage() {
             if (timerIntervalRef.current) {
                 clearInterval(timerIntervalRef.current);
             }
-            setRecordingTime(0);
         }
     };
 
@@ -198,6 +197,9 @@ export default function HireADesignerPage() {
             if (audioRef.current) {
                 audioRef.current.pause();
             }
+             if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
         };
     }, []);
 
@@ -214,16 +216,24 @@ export default function HireADesignerPage() {
 
     const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
+        e.stopPropagation();
         setIsDragging(true);
+    };
+    
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
     };
 
     const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
+        e.stopPropagation();
         setIsDragging(false);
     };
 
     const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
+        e.stopPropagation();
         setIsDragging(false);
         if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
             handleFileSelect(e.dataTransfer.files);
@@ -245,19 +255,20 @@ export default function HireADesignerPage() {
     
     // Form submission
     const handleSubmit = async () => {
-        if (!user) {
+        if (!user || !firestore) {
             toast({ variant: 'destructive', title: 'You must be logged in to submit a request.' });
             return;
         }
 
         const validationErrors = [];
         if (!formState.selectedProduct) validationErrors.push('Please select a product.');
-        if (!formState.designDescription) validationErrors.push('Please provide a design description.');
+        if (!formState.designDescription.trim()) validationErrors.push('Please provide a design description.');
         if (!formState.contactMode) validationErrors.push('Please select a contact method.');
         
         if (validationErrors.length > 0) {
-            setSubmissionError(validationErrors.join(' '));
-            toast({ variant: 'destructive', title: 'Missing Information', description: validationErrors.join(' ') });
+            const errorString = validationErrors.join(' ');
+            setSubmissionError(errorString);
+            toast({ variant: 'destructive', title: 'Missing Information', description: errorString });
             return;
         }
         
@@ -268,8 +279,18 @@ export default function HireADesignerPage() {
             const storage = getStorage();
             const designRequestId = doc(collection(firestore, 'ids')).id;
             
-            // 1. Upload files to Firebase Storage
-            const fileUploadPromises = uploadedFiles.map(async (fileToUpload) => {
+            // Combine uploaded files and voice notes
+            const allFilesToUpload: UploadableFile[] = [
+                ...uploadedFiles,
+                ...recordings.map(rec => ({
+                    file: new File([rec.blob], `voicenote-${rec.id}.webm`, { type: 'audio/webm' }),
+                    id: rec.id.toString(),
+                    progress: 0,
+                }))
+            ];
+
+            // 1. Upload all files (including voice notes) to Firebase Storage
+            const fileUploadPromises = allFilesToUpload.map(async (fileToUpload) => {
                 const filePath = `design_requests/${user.uid}/${designRequestId}/${fileToUpload.file.name}`;
                 const storageRef = ref(storage, filePath);
                 const uploadTask = uploadBytesResumable(storageRef, fileToUpload.file);
@@ -278,18 +299,20 @@ export default function HireADesignerPage() {
                     uploadTask.on('state_changed',
                         (snapshot) => {
                             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            setUploadedFiles(prevFiles =>
+                            // Update progress for both regular files and voice notes
+                             setUploadedFiles(prevFiles =>
                                 prevFiles.map(f =>
                                     f.id === fileToUpload.id ? { ...f, progress } : f
                                 )
                             );
                         },
                         (error) => {
-                            setUploadedFiles(prevFiles =>
+                             setUploadedFiles(prevFiles =>
                                 prevFiles.map(f =>
                                     f.id === fileToUpload.id ? { ...f, error: error.message } : f
                                 )
                             );
+                            console.error(`Upload failed for ${fileToUpload.file.name}:`, error);
                             reject(error);
                         },
                         async () => {
@@ -309,40 +332,50 @@ export default function HireADesignerPage() {
 
             // 2. Create Firestore document
             const designRequestRef = doc(firestore, 'customers', user.uid, 'designRequests', designRequestId);
-            await setDoc(designRequestRef, {
+            const finalFormState = {
                 ...formState,
-                productId: formState.selectedProduct?.id, // Save product ID
+                productId: formState.selectedProduct?.id,
+                productTitle: formState.selectedProduct?.title,
                 id: designRequestId,
                 customerId: user.uid,
                 fileUrls: uploadedFileUrls,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
-            });
+            };
+
+            await setDoc(designRequestRef, finalFormState);
 
             // 3. Create Shopify Draft Order
+            // This assumes user.uid can be mapped to a Shopify Customer Numeric ID.
+            // In a real app, you'd look up the shopifyCustomerId from the /customers/{uid} document.
+            // For this example, we'll extract a numeric ID if present in the UID.
+            const shopifyCustomerId = user.uid.replace(/[^0-9]/g, ''); 
+            if (!shopifyCustomerId) {
+                throw new Error("Could not determine a numeric Shopify customer ID from your user account.");
+            }
+
             const draftOrderResult = await createDraftOrderFlow({
                 designRequestId,
-                // This assumes user.uid can be mapped to a Shopify Customer Numeric ID.
-                // In a real app, you'd look up the shopifyCustomerId from the /customers/{uid} document.
-                customerId: user.uid, 
+                customerId: shopifyCustomerId, 
                 variantId: formState.selectedProduct!.variantId,
                 fileUrls: uploadedFileUrls,
             });
 
-            if (!draftOrderResult.success) {
+            if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
                 throw new Error(draftOrderResult.error || "Failed to create draft order in Shopify.");
             }
-
+            
+            setInvoiceUrl(draftOrderResult.invoiceUrl);
             setSubmissionSuccess(true);
         } catch (error: any) {
             console.error("Submission failed:", error);
-            setSubmissionError(error.message || 'An unknown error occurred during submission.');
-            toast({ variant: 'destructive', title: 'Submission Failed', description: error.message });
+            const errorMessage = error.message || 'An unknown error occurred during submission.';
+            setSubmissionError(errorMessage);
+            toast({ variant: 'destructive', title: 'Submission Failed', description: errorMessage });
         } finally {
             setIsSubmitting(false);
         }
     };
-
 
     if (submissionSuccess) {
         return (
@@ -351,17 +384,28 @@ export default function HireADesignerPage() {
                     <Card className="p-6 md:p-12 text-center bg-green-50 border-2 border-green-500">
                         <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
-                        <p className="text-lg text-gray-700">Thank you for your design request. We've received all your information and files.</p>
+                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted.</p>
                         <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you within 24 hours at <strong>{user?.email}</strong>.</p>
+                        {invoiceUrl && (
+                            <div className="mt-8">
+                                <p className="text-gray-600 mb-4">Please complete your order by paying the design fee.</p>
+                                <Button asChild size="lg" className="bg-green-600 hover:bg-green-700">
+                                    <a href={invoiceUrl} target="_blank" rel="noopener noreferrer">
+                                        Pay Now
+                                    </a>
+                                </Button>
+                            </div>
+                        )}
                     </Card>
                 </div>
             </div>
         )
     }
 
+
     return (
-        <div className="bg-background">
-            <div className="max-w-screen-xl mx-auto py-16 px-5 font-sans">
+        <div className="bg-background font-sans">
+            <div className="max-w-screen-xl mx-auto py-16 px-5">
                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-16 items-start">
                     <main>
                         <h1 className="text-5xl font-bold leading-tight text-gray-800 mb-10 max-w-4xl">
@@ -395,7 +439,7 @@ export default function HireADesignerPage() {
                                     )}
                                     onClick={() => fileInputRef.current?.click()}
                                     onDragEnter={handleDragEnter}
-                                    onDragOver={handleDragEnter}
+                                    onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
                                 >
@@ -405,7 +449,7 @@ export default function HireADesignerPage() {
                                         multiple
                                         className="hidden"
                                         onChange={(e) => handleFileSelect(e.target.files)}
-                                        accept=".pdf,.png,.jpeg,.jpg,.ai,.psd,.tif,.cdr,.eps,.gif,.doc,.docx,.bpm"
+                                        accept=".pdf,.png,.jpeg,.jpg,.ai,.psd,.tif,.cdr,.eps,.gif,.doc,.docx,.bpm,.webm,.m4a,.mp3"
                                     />
                                     <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                                     <p className="mt-4 text-foreground">Click to browse, or drag and drop a file here</p>
@@ -419,15 +463,17 @@ export default function HireADesignerPage() {
                                             {uploadedFiles.map(f => (
                                                 <Card key={f.id} className="flex items-center p-3 gap-3">
                                                     <FileIcon className="h-8 w-8 text-muted-foreground" />
-                                                    <div className="flex-1">
+                                                    <div className="flex-1 overflow-hidden">
                                                         <p className="text-sm font-medium truncate">{f.file.name}</p>
                                                         <p className="text-xs text-muted-foreground">{formatFileSize(f.file.size)}</p>
-                                                        {f.progress < 100 && <Progress value={f.progress} className="h-1 mt-1" />}
+                                                        {isSubmitting && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-1" />}
                                                         {f.error && <p className="text-xs text-destructive mt-1">{f.error}</p>}
                                                     </div>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFile(f.id)}>
-                                                        <X className="h-4 w-4" />
-                                                    </Button>
+                                                    {!isSubmitting && (
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeFile(f.id)}>
+                                                            <X className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
                                                 </Card>
                                             ))}
                                         </div>
@@ -452,37 +498,39 @@ export default function HireADesignerPage() {
                                 value={description}
                                 onChange={handleDescriptionChange}
                                 className="min-h-[150px] text-base"
+                                maxLength={500}
                             />
                             <div className="text-right text-sm text-gray-600 mt-2">
                                 {description.length}/500
                             </div>
 
                             <div className="mt-4">
-                                <p className="text-sm text-gray-600">You can now use voice notes to add your comment</p>
+                                <p className="text-sm text-gray-600">You can also add a comment with a voice note.</p>
                                 <Button
                                     variant="link"
                                     onClick={handleVoiceNoteClick}
-                                    className={`p-0 h-auto text-gray-800 hover:text-primary transition-colors ${isRecording ? 'text-red-600' : ''}`}
+                                    className={cn('p-0 h-auto text-gray-800 hover:text-primary transition-colors', isRecording && 'text-red-600')}
                                 >
-                                    <Mic className={`mr-2 h-4 w-4 ${isRecording ? 'animate-pulse' : ''}`} />
+                                    <Mic className={cn('mr-2 h-4 w-4', isRecording && 'animate-pulse')} />
                                     {isRecording ? 'Stop Recording' : 'Add a Voice note'}
                                     {isRecording && <span className="ml-2 font-semibold text-red-600">{formatTime(recordingTime)}</span>}
                                 </Button>
 
                                 {recordings.length > 0 && (
                                     <div className="mt-5 space-y-3">
+                                        <h3 className="font-semibold mb-2">Voice Notes:</h3>
                                         {recordings.map((rec) => (
-                                            <div key={rec.id} className="flex items-center justify-between p-3 bg-gray-100 rounded-md">
-                                                <div className="flex items-center gap-3 flex-1">
-                                                    <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-500">
+                                            <Card key={rec.id} className="flex items-center justify-between p-3">
+                                                <div className="flex items-center gap-3 flex-1 overflow-hidden">
+                                                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground flex-shrink-0">
                                                         <Mic className="w-4 h-4" />
                                                     </div>
                                                     <div className="flex-1">
-                                                        <div className="text-sm font-medium text-gray-800">Voice Note {rec.id.toString().slice(-4)}</div>
-                                                        <div className="text-xs text-gray-600">{formatTime(rec.duration)}</div>
+                                                        <div className="text-sm font-medium text-foreground truncate">Voice Note {rec.id.toString().slice(-4)}</div>
+                                                        <div className="text-xs text-muted-foreground">{formatTime(rec.duration)}</div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1">
                                                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePlayPause(rec)}>
                                                         {playingId === rec.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                                                     </Button>
@@ -493,7 +541,7 @@ export default function HireADesignerPage() {
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
                                                 </div>
-                                            </div>
+                                            </Card>
                                         ))}
                                     </div>
                                 )}
@@ -501,7 +549,7 @@ export default function HireADesignerPage() {
                         </div>
 
                         {/* Submission Section */}
-                        <div className="mt-12 max-w-md mx-auto text-center">
+                         <div className="mt-12 max-w-md mx-auto text-center">
                              <div className="bg-muted p-6 rounded-lg mb-6">
                                 <h3 className="font-semibold text-lg mb-4">Review Your Request</h3>
                                 <div className="space-y-3 text-left">
@@ -521,6 +569,10 @@ export default function HireADesignerPage() {
                                         <span className="text-muted-foreground">Files:</span>
                                         <span className="font-medium">{uploadedFiles.length} file(s)</span>
                                     </div>
+                                     <div className="flex justify-between items-center">
+                                        <span className="text-muted-foreground">Voice Notes:</span>
+                                        <span className="font-medium">{recordings.length} recording(s)</span>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -532,7 +584,7 @@ export default function HireADesignerPage() {
                                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
                                                 Submitting...
                                             </>
-                                        ) : 'Hire a Designer'}
+                                        ) : 'Hire a Designer & Proceed to Payment'}
                                     </Button>
                                     {submissionError && <div className="mt-4 text-destructive bg-destructive/10 p-3 rounded-md">{submissionError}</div>}
                                 </>
@@ -562,6 +614,5 @@ export default function HireADesignerPage() {
             </div>
         </div>
     );
-}
 
     
