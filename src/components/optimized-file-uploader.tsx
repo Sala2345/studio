@@ -43,7 +43,7 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+  const API_URL = '/api/upload';
 
   const updateFileState = useCallback((id: string, updates: Partial<FileObject>) => {
     setFiles(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
@@ -86,7 +86,7 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
       const formData = new FormData();
       formData.append('file', fileObj.file);
 
-      const response = await uploadWithProgress(`${API_URL}/api/upload`, formData, (progress) => {
+      const response = await uploadWithProgress(API_URL, formData, (progress) => {
         updateFileState(fileObj.id, { progress });
       });
 
@@ -156,7 +156,7 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
 
   useEffect(() => {
     if (onFilesUploaded) {
-        const uploadedFiles = files
+        const uploadedFilesData = files
             .filter(f => f.status === 'done' && f.url)
             .map(f => ({
                 originalName: f.name,
@@ -165,7 +165,7 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
                 size: f.size,
                 type: f.type,
             }));
-        onFilesUploaded(uploadedFiles);
+        onFilesUploaded(uploadedFilesData);
     }
   }, [files, onFilesUploaded]);
   
