@@ -267,10 +267,33 @@ function HireADesignerPageContent() {
     };
 
     const handleVoiceNoteClick = () => {
-        if (isRecording) {
-            stopRecording();
+        if (hasPermission === null) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    stream.getTracks().forEach(track => track.stop()); // Stop the stream immediately, we just wanted the prompt
+                    setHasPermission(true);
+                    startRecording();
+                })
+                .catch(err => {
+                    setHasPermission(false);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Microphone Access Denied',
+                        description: 'Please grant microphone permission in your browser to record a voice note.',
+                    });
+                });
+        } else if (hasPermission) {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
         } else {
-            startRecording();
+            toast({
+                variant: 'destructive',
+                title: 'Microphone Access Denied',
+                description: 'Please grant microphone permission in your browser to record a voice note.',
+            });
         }
     };
     
@@ -637,7 +660,7 @@ function HireADesignerPageContent() {
                             {designSteps.map((step, index) => (
                                 <div key={index} className="bg-primary p-6 rounded-lg flex items-center gap-4 text-primary-foreground">
                                     <div className="text-4xl font-bold min-w-[30px]">{index + 1}</div>
-                                    <div className="text-base font-medium leading-snug">{step.text}</div>
+                                    <div className="text-base font-bold leading-snug">{step.text}</div>
                                 </div>
                             ))}
                         </div>
@@ -928,3 +951,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
