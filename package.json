@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@genkit-ai/google-genai": "^1.20.0",
