@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { UploadCloud, X, Loader2, CheckCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,24 +48,6 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
   const updateFileState = useCallback((id: string, updates: Partial<FileObject>) => {
     setFiles(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   }, []);
-
-  const notifyParent = useCallback(() => {
-    setFiles(currentFiles => {
-      const uploadedFiles = currentFiles
-        .filter(f => f.status === 'done' && f.url)
-        .map(f => ({
-          originalName: f.name,
-          fileName: f.fileName!,
-          url: f.url!,
-          size: f.size,
-          type: f.type,
-        }));
-      if (onFilesUploaded) {
-        onFilesUploaded(uploadedFiles);
-      }
-      return currentFiles;
-    });
-  }, [onFilesUploaded]);
 
   const uploadWithProgress = (url: string, formData: FormData, onProgress: (progress: number) => void): Promise<any> => {
     return new Promise((resolve, reject) => {
@@ -127,8 +109,7 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
     setIsProcessing(true);
     await Promise.all(filesToProcess.map(fileObj => uploadSingleFile(fileObj)));
     setIsProcessing(false);
-    notifyParent();
-  }, [uploadSingleFile, notifyParent]);
+  }, [uploadSingleFile]);
 
   const handleFileSelect = useCallback((selectedFiles: FileList | null) => {
     if (!selectedFiles) return;
@@ -163,21 +144,7 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
   }, [maxFiles, processFiles, toast]);
   
   const removeFile = (fileId: string) => {
-    setFiles(prev => {
-        const newFiles = prev.filter(f => f.id !== fileId);
-        // We still need to notify parent in case a completed upload is removed
-        const uploadedFiles = newFiles
-            .filter(f => f.status === 'done' && f.url)
-            .map(f => ({
-                originalName: f.name,
-                fileName: f.fileName!,
-                url: f.url!,
-                size: f.size,
-                type: f.type,
-            }));
-        if(onFilesUploaded) onFilesUploaded(uploadedFiles);
-        return newFiles;
-    });
+    setFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   const retryUpload = (fileId: string) => {
@@ -186,6 +153,21 @@ const ExpressMulterUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
         uploadSingleFile(fileObj);
     }
   };
+
+  useEffect(() => {
+    if (onFilesUploaded) {
+        const uploadedFiles = files
+            .filter(f => f.status === 'done' && f.url)
+            .map(f => ({
+                originalName: f.name,
+                fileName: f.fileName!,
+                url: f.url!,
+                size: f.size,
+                type: f.type,
+            }));
+        onFilesUploaded(uploadedFiles);
+    }
+  }, [files, onFilesUploaded]);
   
   const getStatusInfo = (status: FileObject['status']): { icon: React.ReactNode, text: string } => {
     switch (status) {
