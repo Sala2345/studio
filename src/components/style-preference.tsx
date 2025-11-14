@@ -53,31 +53,31 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
     {
       title: "Clean & Minimal",
       description: "Minimal yet impactful, embracing modern simplicity with style.",
-      image1: "https://picsum.photos/seed/style1/300/300",
-      image2: "https://picsum.photos/seed/style2/300/300"
+      image1: "https://firebasestorage.googleapis.com/v0/b/studio-6281389376-e03d5.firebasestorage.app/o/Website_images_2_Clean_Minimal_1_1.webp?alt=media&token=31704b63-501f-4f7b-a796-c93a8977aea1",
+      image2: null,
     },
     {
       title: "Elegant & Formal",
       description: "Elegance with a formal touch, perfect harmony of poise, grace.",
-      image1: "https://picsum.photos/seed/style3/300/300",
-      image2: "https://picsum.photos/seed/style4/300/300"
+      image1: "https://firebasestorage.googleapis.com/v0/b/studio-6281389376-e03d5.firebasestorage.app/o/Website_images_2_SVG_Formal_Minimal%20(1).avif?alt=media&token=ae129b9d-24ce-451c-a185-f3f6044eb3a7",
+      image2: null,
     },
     {
       title: "Typography",
       description: "Typography with blending elegance, merging style, clarity.",
-      image1: "https://picsum.photos/seed/style5/300/300",
-      image2: "https://picsum.photos/seed/style6/300/300"
+      image1: "https://firebasestorage.googleapis.com/v0/b/studio-6281389376-e03d5.firebasestorage.app/o/Website_images_1_Typography_1_1_1_1_1%20(1).avif?alt=media&token=83f3418f-06c5-4b9c-adc9-78e1f46295bf",
+      image2: null,
     },
     {
       title: "Fun & Whimsical",
       description: "Playful & Lively, where creativity meets carefree charm.",
-      image1: "https://picsum.photos/seed/style7/300/300",
-      image2: "https://picsum.photos/seed/style8/300/300"
+      image1: "https://firebasestorage.googleapis.com/v0/b/studio-6281389376-e03d5.firebasestorage.app/o/Fun_and_whimsical_Fun_Whimsical_copy%20(1).avif?alt=media&token=7b329769-c405-4e06-8a82-9f0562b4fb8b",
+      image2: null
     },
     {
       title: "Let The Expert Decide",
       description: "Trust the expert to choose the best, tailored to your needs with",
-      image1: "https://picsum.photos/seed/style9/300/300",
+      image1: "https://firebasestorage.googleapis.com/v0/b/studio-6281389376-e03d5.firebasestorage.app/o/Image_3_1_1_%20(1).avif?alt=media&token=f1ac4c3f-7e9e-4c00-9681-1021df75a804",
       image2: null,
     }
   ];
