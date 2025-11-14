@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { UploadDropzone } from "@uploadthing/react";
 import { X, CheckCircle } from 'lucide-react';
 import type { OurFileRouter } from "@/app/api/uploadthing/core";
@@ -16,14 +16,15 @@ interface UploadedFile {
 
 interface SimpleFileUploaderProps {
   onFilesUploaded: (files: UploadedFile[]) => void;
+  uploadedFiles: UploadedFile[];
   maxFiles?: number;
 }
 
 export default function SimpleFileUploader({ 
   onFilesUploaded,
+  uploadedFiles,
   maxFiles = 10 
 }: SimpleFileUploaderProps) {
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
 
   const handleUploadComplete = (res: any[]) => {
@@ -37,7 +38,6 @@ export default function SimpleFileUploader({
     }));
 
     const allFiles = [...uploadedFiles, ...newFiles];
-    setUploadedFiles(allFiles);
     onFilesUploaded(allFiles);
 
     toast({
@@ -48,7 +48,6 @@ export default function SimpleFileUploader({
 
   const removeFile = (key: string) => {
     const updatedFiles = uploadedFiles.filter(f => f.key !== key);
-    setUploadedFiles(updatedFiles);
     onFilesUploaded(updatedFiles);
   };
 
@@ -131,3 +130,5 @@ export default function SimpleFileUploader({
     </div>
   );
 }
+
+    

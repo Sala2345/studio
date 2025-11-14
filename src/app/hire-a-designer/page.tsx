@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -178,8 +177,8 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
-    const handleFilesUploaded = useCallback((newFiles: UploadedFileData[]) => {
-        setUploadedFiles(prev => [...prev, ...newFiles]);
+    const handleFilesUploaded = useCallback((files: UploadedFileData[]) => {
+        setUploadedFiles(files);
     }, []);
 
     const handleSubmit = async () => {
@@ -419,7 +418,7 @@ function HireADesignerPageContent() {
                                 Add logos, voice notes, and images, as well as any references you'd like us to look at.
                             </p>
                             <div className="max-w-3xl">
-                               <SimpleFileUploader onFilesUploaded={handleFilesUploaded} />
+                               <SimpleFileUploader onFilesUploaded={handleFilesUploaded} uploadedFiles={uploadedFiles} />
                             </div>
                         </div>
 
@@ -510,3 +509,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
