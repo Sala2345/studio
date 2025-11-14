@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -98,7 +99,7 @@ function OrderRequestsPageContent() {
                                             <li key={index} className="flex items-center">
                                                 <a href={file} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center text-sm">
                                                     <ExternalLink className="w-4 h-4 mr-2" />
-                                                    {file.split('/').pop()?.split('?')[0] || `File ${index + 1}`}
+                                                    {decodeURIComponent(file.split('/').pop()?.split('?')[0] || `File ${index + 1}`)}
                                                 </a>
                                             </li>
                                         ))}
@@ -144,4 +145,3 @@ export default function OrderRequestsPage() {
         </React.Suspense>
     );
 }
-
