@@ -8,11 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import type { UploadFileResponse } from 'uploadthing/client';
 
 export interface UploadedFileData {
-  originalName: string;
-  fileName: string;
+  name: string;
+  key: string;
   url: string;
   size: number;
-  type: string;
 }
 
 interface OptimizedFileUploaderProps {
@@ -29,12 +28,11 @@ export const OptimizedFileUploader: React.FC<OptimizedFileUploaderProps> = ({ on
             endpoint="fileUploader"
             onClientUploadComplete={(res?: UploadFileResponse[]) => {
                 if (res) {
-                    const uploadedFiles = res.map(file => ({
-                        originalName: file.name,
-                        fileName: file.key, 
+                    const uploadedFiles: UploadedFileData[] = res.map(file => ({
+                        name: file.name,
+                        key: file.key, 
                         url: file.url,
                         size: file.size,
-                        type: "", // Uploadthing doesn't provide type in the response
                     }));
                     onFilesUploaded(uploadedFiles);
                     toast({

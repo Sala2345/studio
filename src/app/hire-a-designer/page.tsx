@@ -23,7 +23,7 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { OptimizedFileUploader, type UploadedFileData } from '@/components/optimized-file-uploader';
+import SimpleFileUploader from '@/components/SimpleFileUploader';
 import { cn } from '@/lib/utils';
 
 
@@ -38,6 +38,14 @@ const designSteps = [
         text: "We'll print and ship your order",
     },
 ]
+
+interface UploadedFileData {
+  name: string;
+  url: string;
+  size: number;
+  key: string;
+}
+
 
 interface FormState {
     name: string;
@@ -470,7 +478,7 @@ function HireADesignerPageContent() {
                                 Add logos, voice notes, and images, as well as any references you'd like us to look at.
                             </p>
                             <div className="max-w-3xl">
-                               <OptimizedFileUploader onFilesUploaded={handleFilesUploaded} />
+                               <SimpleFileUploader onFilesUploaded={handleFilesUploaded} />
                             </div>
                         </div>
 
@@ -563,3 +571,4 @@ export default function HireADesignerPage() {
 }
 
     
+
