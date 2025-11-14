@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { doc, collection, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, arrayUnion, writeBatch } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Progress } from '@/components/ui/progress';
 import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
@@ -400,33 +400,39 @@ function HireADesignerPageContent() {
     };
 
     const processAndUploadFiles = async (designRequestRef: any, customerId: string, designRequestId: string, filesToUpload: UploadableFile[]) => {
+        if (!firestore) return;
         const storage = getStorage();
+        const fileUrls: string[] = [];
+        const fileErrors: { fileName: string, error: string }[] = [];
 
-        for (const fileToUpload of filesToUpload) {
-            try {
-                let fileToProcess = fileToUpload.file;
-                // Compress images before upload
-                if (fileToProcess.type.startsWith('image/') && fileToProcess.size > 1024 * 1024) { // Only compress images > 1MB
-                    try {
-                        const compressedFile = await imageCompression(fileToProcess, {
-                            maxSizeMB: 5,
-                            maxWidthOrHeight: 1920,
-                            useWebWorker: true,
-                        });
-                        fileToProcess = compressedFile;
-                         toast({
-                            title: `Image compressed: ${fileToProcess.name}`,
-                            description: `Original size: ${formatFileSize(fileToUpload.file.size)}, New size: ${formatFileSize(compressedFile.size)}`,
-                        });
-                    } catch (compressionError) {
-                        console.warn(`Could not compress image ${fileToUpload.file.name}. Uploading original.`, compressionError);
-                        // If compression fails, upload the original file.
-                    }
+        const compressionPromises = filesToUpload.map(async (fileToUpload) => {
+            let fileToProcess = fileToUpload.file;
+            if (fileToProcess.type.startsWith('image/') && fileToProcess.size > 1024 * 1024) { // Only compress images > 1MB
+                try {
+                    const compressedFile = await imageCompression(fileToProcess, {
+                        maxSizeMB: 5,
+                        maxWidthOrHeight: 1920,
+                        useWebWorker: true,
+                    });
+                    toast({
+                        title: `Image compressed: ${compressedFile.name}`,
+                        description: `Original size: ${formatFileSize(fileToUpload.file.size)}, New size: ${formatFileSize(compressedFile.size)}`,
+                    });
+                    return { ...fileToUpload, file: compressedFile };
+                } catch (compressionError) {
+                    console.warn(`Could not compress image ${fileToUpload.file.name}. Uploading original.`, compressionError);
                 }
-                
-                const filePath = `design_requests/${customerId}/${designRequestId}/${fileToProcess.name}`;
+            }
+            return fileToUpload;
+        });
+
+        const filesToActuallyUpload = await Promise.all(compressionPromises);
+
+        const uploadPromises = filesToActuallyUpload.map(fileToUpload => {
+            return new Promise<void>((resolve) => {
+                const filePath = `design_requests/${customerId}/${designRequestId}/${fileToUpload.file.name}`;
                 const storageRef = ref(storage, filePath);
-                const uploadTask = uploadBytesResumable(storageRef, fileToProcess);
+                const uploadTask = uploadBytesResumable(storageRef, fileToUpload.file);
 
                 uploadTask.on('state_changed',
                     (snapshot) => {
@@ -439,28 +445,36 @@ function HireADesignerPageContent() {
                     },
                     (error) => {
                         console.error(`Upload failed for ${fileToUpload.file.name}:`, error);
-                         updateDocumentNonBlocking(designRequestRef, {
-                            status: 'upload-error',
-                            fileErrors: arrayUnion({ fileName: fileToUpload.file.name, error: error.message })
-                        });
+                        fileErrors.push({ fileName: fileToUpload.file.name, error: error.message });
+                        resolve();
                     },
                     async () => {
                         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        updateDocumentNonBlocking(designRequestRef, {
-                            fileUrls: arrayUnion(downloadURL)
-                        });
+                        fileUrls.push(downloadURL);
+                        resolve();
                     }
                 );
-            } catch (error) {
-                console.error(`Error processing file ${fileToUpload.file.name}:`, error);
-                 updateDocumentNonBlocking(designRequestRef, {
-                    status: 'upload-error',
-                    fileErrors: arrayUnion({ fileName: fileToUpload.file.name, error: (error as Error).message })
-                });
-            }
+            });
+        });
+
+        await Promise.all(uploadPromises);
+
+        // Batch update Firestore with all URLs and errors at once
+        const batch = writeBatch(firestore);
+        const updateData: { fileUrls: any, status: string, fileErrors?: any } = {
+            fileUrls: arrayUnion(...fileUrls),
+            status: 'files-uploaded',
+        };
+
+        if (fileErrors.length > 0) {
+            updateData.status = 'upload-error';
+            updateData.fileErrors = arrayUnion(...fileErrors);
         }
+
+        batch.update(designRequestRef, updateData);
+        await batch.commit();
     };
-    
+
     const handleSubmit = async () => {
         if (!firestore) {
             toast({ variant: 'destructive', title: 'Database not available.' });
@@ -491,7 +505,7 @@ function HireADesignerPageContent() {
         setIsSubmitting(true);
 
         const designRequestId = doc(collection(firestore, 'ids')).id;
-        const customerId = user?.uid || doc(collection(firestore, 'ids')).id;
+        const customerId = user?.uid || `anon_${doc(collection(firestore, 'ids')).id}`;
 
         const customerRef = doc(firestore, 'customers', customerId);
         const customerData: any = {
@@ -504,6 +518,9 @@ function HireADesignerPageContent() {
         };
         if (formState.shopifyCustomerId) {
             customerData.shopifyCustomerId = formState.shopifyCustomerId;
+        }
+         if (!user) { // Set createdAt only for new anonymous users
+            customerData.createdAt = serverTimestamp();
         }
         // Create or merge customer data without blocking
         setDocumentNonBlocking(customerRef, customerData, { merge: true });
@@ -555,8 +572,10 @@ function HireADesignerPageContent() {
         ];
         if (allFilesToUpload.length > 0) {
                 processAndUploadFiles(designRequestRef, customerId, designRequestId, allFilesToUpload)
-                .then(() => updateDocumentNonBlocking(designRequestRef, { status: 'files-uploaded' }))
-                .catch(() => { /* Error is handled inside processAndUploadFiles */});
+                .catch((err) => { 
+                    console.error("File processing/upload failed:", err);
+                    updateDocumentNonBlocking(designRequestRef, { status: 'upload-error', orderError: 'File upload failed.' });
+                });
         } else {
             updateDocumentNonBlocking(designRequestRef, { status: 'files-uploaded' });
         }
@@ -951,4 +970,5 @@ export default function HireADesignerPage() {
 
 
     
+
 
