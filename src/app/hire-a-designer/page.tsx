@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -213,9 +214,34 @@ function HireADesignerPageContent() {
     }, []);
 
     const startRecording = async () => {
+        if (hasPermission === null) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setHasPermission(true);
+                stream.getTracks().forEach(track => track.stop()); // We have permission, now stop the track and start again properly.
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                setHasPermission(false);
+                toast({
+                    variant: 'destructive',
+                    title: 'Microphone Access Denied',
+                    description: 'Please grant microphone permission in your browser to record a voice note.',
+                });
+                return; // Stop execution if permission is denied
+            }
+        }
+    
+        if (hasPermission === false) {
+             toast({
+                variant: 'destructive',
+                title: 'Microphone Access Denied',
+                description: 'Please grant microphone permission in your browser to record a voice note.',
+            });
+            return;
+        }
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            setHasPermission(true);
             const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
             mediaRecorderRef.current = mediaRecorder;
             let audioChunks: Blob[] = [];
@@ -246,12 +272,11 @@ function HireADesignerPageContent() {
             }, 1000);
 
         } catch (error) {
-            console.error('Error accessing microphone:', error);
-            setHasPermission(false);
-            toast({
+            console.error('Error starting recording:', error);
+             toast({
                 variant: 'destructive',
-                title: 'Microphone Access Denied',
-                description: 'Please grant microphone permission in your browser to record a voice note.',
+                title: 'Recording Error',
+                description: 'Could not start recording. Please try again.',
             });
         }
     };
@@ -267,33 +292,10 @@ function HireADesignerPageContent() {
     };
 
     const handleVoiceNoteClick = () => {
-        if (hasPermission === null) {
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(stream => {
-                    stream.getTracks().forEach(track => track.stop()); // Stop the stream immediately, we just wanted the prompt
-                    setHasPermission(true);
-                    startRecording();
-                })
-                .catch(err => {
-                    setHasPermission(false);
-                    toast({
-                        variant: 'destructive',
-                        title: 'Microphone Access Denied',
-                        description: 'Please grant microphone permission in your browser to record a voice note.',
-                    });
-                });
-        } else if (hasPermission) {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
+        if (isRecording) {
+            stopRecording();
         } else {
-            toast({
-                variant: 'destructive',
-                title: 'Microphone Access Denied',
-                description: 'Please grant microphone permission in your browser to record a voice note.',
-            });
+            startRecording();
         }
     };
     
@@ -634,7 +636,7 @@ function HireADesignerPageContent() {
             <div className="flex items-center gap-3">
                 <div className={cn(
                     "w-5 h-5 rounded-full border-2 flex items-center justify-center",
-                    isComplete ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                    isComplete ? 'bg-destructive border-destructive' : 'border-gray-300'
                 )}>
                     {isComplete && <CheckCircle className="w-3 h-3 text-white" />}
                 </div>
