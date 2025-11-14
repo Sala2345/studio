@@ -2,21 +2,18 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Loader2, Upload, Check } from 'lucide-react';
+import { CheckCircle, Loader2, Upload, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { doc, collection, serverTimestamp, arrayUnion, writeBatch } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import { Progress } from '@/components/ui/progress';
 import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
@@ -25,8 +22,8 @@ import { ColorPreference } from '@/components/color-preference';
 import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
-import imageCompression from 'browser-image-compression';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { OptimizedFileUploader, type UploadedFileData } from '@/components/optimized-file-uploader';
 
 
 const designSteps = [
@@ -40,21 +37,6 @@ const designSteps = [
         text: "We'll print and ship your order",
     },
 ]
-
-type Recording = {
-    id: number;
-    blob: Blob;
-    url: string;
-    duration: number;
-};
-
-type UploadableFile = {
-    file: File;
-    id: string;
-    progress: number;
-    url?: string;
-    error?: string;
-};
 
 interface FormState {
     name: string;
@@ -77,14 +59,7 @@ interface FormState {
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
-    const [recordings, setRecordings] = useState<Recording[]>([]);
-    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-    const [isRecording, setIsRecording] = useState(false);
-    const [recordingTime, setRecordingTime] = useState(0);
-    const [playingId, setPlayingId] = useState<number | null>(null);
-
-    const [uploadedFiles, setUploadedFiles] = useState<UploadableFile[]>([]);
-    const [isDragging, setIsDragging] = useState(false);
+    const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
     const [availableCities, setAvailableCities] = useState<string[]>([]);
 
 
@@ -114,12 +89,6 @@ function HireADesignerPageContent() {
     const { toast } = useToast();
     const { user, isUserLoading } = useUser();
     const firestore = useFirestore();
-
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const recordingStartTimeRef = useRef<number>(0);
-    const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleProductSelect = useCallback((product: ShopifyProduct | null) => {
         setFormState(prev => ({
@@ -214,266 +183,9 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
-    const startRecording = async () => {
-        if (hasPermission === null) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                setHasPermission(true);
-                stream.getTracks().forEach(track => track.stop()); // We have permission, now stop the track and start again properly.
-            } catch (error) {
-                console.error('Error accessing microphone:', error);
-                setHasPermission(false);
-                toast({
-                    variant: 'destructive',
-                    title: 'Microphone Access Denied',
-                    description: 'Please grant microphone permission in your browser to record a voice note.',
-                });
-                return; // Stop execution if permission is denied
-            }
-        }
-    
-        if (hasPermission === false) {
-             toast({
-                variant: 'destructive',
-                title: 'Microphone Access Denied',
-                description: 'Please grant microphone permission in your browser to record a voice note.',
-            });
-            return;
-        }
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-            mediaRecorderRef.current = mediaRecorder;
-            let audioChunks: Blob[] = [];
-
-            mediaRecorder.addEventListener('dataavailable', event => {
-                audioChunks.push(event.data);
-            });
-
-            mediaRecorder.addEventListener('stop', () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                const duration = Math.floor((Date.now() - recordingStartTimeRef.current) / 1000);
-                
-                setRecordings(prev => [
-                    ...prev,
-                    { id: Date.now(), blob: audioBlob, url: audioUrl, duration },
-                ]);
-
-                stream.getTracks().forEach(track => track.stop());
-            });
-
-            mediaRecorder.start();
-            setIsRecording(true);
-            setRecordingTime(0);
-            recordingStartTimeRef.current = Date.now();
-            timerIntervalRef.current = setInterval(() => {
-                setRecordingTime(prev => prev + 1);
-            }, 1000);
-
-        } catch (error) {
-            console.error('Error starting recording:', error);
-             toast({
-                variant: 'destructive',
-                title: 'Recording Error',
-                description: 'Could not start recording. Please try again.',
-            });
-        }
-    };
-
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            if (timerIntervalRef.current) {
-                clearInterval(timerIntervalRef.current);
-            }
-        }
-    };
-
-    const handleVoiceNoteClick = () => {
-        if (isRecording) {
-            stopRecording();
-        } else {
-            startRecording();
-        }
-    };
-    
-    const formatTime = (timeInSeconds: number) => {
-        const minutes = Math.floor(timeInSeconds / 60);
-        const seconds = timeInSeconds % 60;
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    };
-
-    const handlePlayPause = (recording: Recording) => {
-        if (playingId === recording.id) {
-            audioRef.current?.pause();
-            setPlayingId(null);
-        } else {
-            if (audioRef.current) {
-                audioRef.current.pause();
-            }
-            const newAudio = new Audio(recording.url);
-            audioRef.current = newAudio;
-            newAudio.play();
-            setPlayingId(recording.id);
-            newAudio.onended = () => setPlayingId(null);
-        }
-    };
-
-    const handleDeleteRecording = (id: number) => {
-        if (playingId === id) {
-            audioRef.current?.pause();
-            setPlayingId(null);
-        }
-        setRecordings(recordings.filter(rec => rec.id !== id));
-    };
-
-    const handleDownloadRecording = (recording: Recording) => {
-        const a = document.createElement('a');
-        a.href = recording.url;
-        a.download = `voice-note-${recording.id}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    };
-
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-            }
-             if (timerIntervalRef.current) {
-                clearInterval(timerIntervalRef.current);
-            }
-        };
+    const handleFilesUploaded = useCallback((finalFiles: UploadedFileData[]) => {
+        setUploadedFiles(finalFiles);
     }, []);
-
-    const handleFileSelect = (files: FileList | null) => {
-        if (!files) return;
-        const newFiles = Array.from(files).map(file => ({
-            file,
-            id: `${file.name}-${Date.now()}`,
-            progress: 0,
-        }));
-        setUploadedFiles(prev => [...prev, ...newFiles]);
-    };
-
-    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-    };
-    
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-            handleFileSelect(e.dataTransfer.files);
-            e.dataTransfer.clearData();
-        }
-    };
-
-    const removeFile = (id: string) => {
-        setUploadedFiles(files => files.filter(f => f.id !== id));
-    };
-
-    const formatFileSize = (bytes: number) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
-
-    const processAndUploadFiles = async (designRequestRef: any, customerId: string, designRequestId: string, filesToUpload: UploadableFile[]) => {
-        if (!firestore) return;
-        const storage = getStorage();
-        const fileUrls: string[] = [];
-        const fileErrors: { fileName: string, error: string }[] = [];
-
-        const compressionPromises = filesToUpload.map(async (fileToUpload) => {
-            let fileToProcess = fileToUpload.file;
-            if (fileToProcess.type.startsWith('image/') && fileToProcess.size > 1024 * 1024) { // Only compress images > 1MB
-                try {
-                    const compressedFile = await imageCompression(fileToProcess, {
-                        maxSizeMB: 5,
-                        maxWidthOrHeight: 1920,
-                        useWebWorker: true,
-                    });
-                    toast({
-                        title: `Image compressed: ${compressedFile.name}`,
-                        description: `Original size: ${formatFileSize(fileToUpload.file.size)}, New size: ${formatFileSize(compressedFile.size)}`,
-                    });
-                    return { ...fileToUpload, file: compressedFile };
-                } catch (compressionError) {
-                    console.warn(`Could not compress image ${fileToUpload.file.name}. Uploading original.`, compressionError);
-                }
-            }
-            return fileToUpload;
-        });
-
-        const filesToActuallyUpload = await Promise.all(compressionPromises);
-
-        const uploadPromises = filesToActuallyUpload.map(fileToUpload => {
-            return new Promise<void>((resolve) => {
-                const filePath = `design_requests/${customerId}/${designRequestId}/${fileToUpload.file.name}`;
-                const storageRef = ref(storage, filePath);
-                const uploadTask = uploadBytesResumable(storageRef, fileToUpload.file);
-
-                uploadTask.on('state_changed',
-                    (snapshot) => {
-                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                        setUploadedFiles(prevFiles =>
-                            prevFiles.map(f =>
-                                f.id === fileToUpload.id ? { ...f, progress } : f
-                            )
-                        );
-                    },
-                    (error) => {
-                        console.error(`Upload failed for ${fileToUpload.file.name}:`, error);
-                        fileErrors.push({ fileName: fileToUpload.file.name, error: error.message });
-                        resolve();
-                    },
-                    async () => {
-                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        fileUrls.push(downloadURL);
-                        resolve();
-                    }
-                );
-            });
-        });
-
-        await Promise.all(uploadPromises);
-
-        // Batch update Firestore with all URLs and errors at once
-        const batch = writeBatch(firestore);
-        const updateData: { fileUrls: any, status: string, fileErrors?: any } = {
-            fileUrls: arrayUnion(...fileUrls),
-            status: 'files-uploaded',
-        };
-
-        if (fileErrors.length > 0) {
-            updateData.status = 'upload-error';
-            updateData.fileErrors = arrayUnion(...fileErrors);
-        }
-
-        batch.update(designRequestRef, updateData);
-        await batch.commit();
-    };
 
     const handleSubmit = async () => {
         if (!firestore) {
@@ -525,7 +237,8 @@ function HireADesignerPageContent() {
         // Create or merge customer data without blocking
         setDocumentNonBlocking(customerRef, customerData, { merge: true });
 
-
+        const fileUrls = uploadedFiles.map(f => f.url).filter((url): url is string => !!url);
+        
         const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
         const preliminaryFormState = {
             ...formState,
@@ -538,7 +251,7 @@ function HireADesignerPageContent() {
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
             status: 'pending',
-            fileUrls: [], // Will be populated by background process
+            fileUrls: fileUrls, 
         };
         
         // Clean up data for Firestore
@@ -561,26 +274,7 @@ function HireADesignerPageContent() {
 
         // --- Start background processing ---
 
-        // 1. Files
-        const allFilesToUpload: UploadableFile[] = [
-            ...uploadedFiles,
-            ...recordings.map(rec => ({
-                file: new File([rec.blob], `voicenote-${rec.id}.webm`, { type: 'audio/webm' }),
-                id: rec.id.toString(),
-                progress: 0,
-            }))
-        ];
-        if (allFilesToUpload.length > 0) {
-                processAndUploadFiles(designRequestRef, customerId, designRequestId, allFilesToUpload)
-                .catch((err) => { 
-                    console.error("File processing/upload failed:", err);
-                    updateDocumentNonBlocking(designRequestRef, { status: 'upload-error', orderError: 'File upload failed.' });
-                });
-        } else {
-            updateDocumentNonBlocking(designRequestRef, { status: 'files-uploaded' });
-        }
-
-        // 2. Shopify Order
+        // Shopify Order
         if (formState.selectedVariantId) {
             createOrderFromLogFlow({ log: preliminaryFormState as any })
                 .then(async (draftOrderResult) => {
@@ -756,49 +450,6 @@ function HireADesignerPageContent() {
                             <div className="text-right text-sm text-gray-600 mt-2">
                                 {formState.designDescription.length}/500
                             </div>
-
-                            <div className="mt-4">
-                                <p className="text-sm text-gray-600">You can also add a comment with a voice note.</p>
-                                <Button
-                                    variant="outline"
-                                    onClick={handleVoiceNoteClick}
-                                    className={cn('text-primary border-primary hover:bg-primary/5 hover:text-primary transition-colors', isRecording && 'text-destructive')}
-                                >
-                                    <Mic className={cn('mr-2 h-4 w-4', isRecording && 'animate-pulse')} />
-                                    {isRecording ? 'Stop Recording' : 'Add a Voice note'}
-                                    {isRecording && <span className="ml-2 font-semibold text-destructive">{formatTime(recordingTime)}</span>}
-                                </Button>
-
-                                {recordings.length > 0 && !isSubmitting && (
-                                    <div className="mt-5 space-y-3">
-                                        <h3 className="font-semibold mb-2">Voice Notes:</h3>
-                                        {recordings.map((rec) => (
-                                            <Card key={rec.id} className="flex items-center justify-between p-3">
-                                                <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                                                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground flex-shrink-0">
-                                                        <Mic className="w-4 h-4" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="text-sm font-medium text-foreground truncate">Voice Note {rec.id.toString().slice(-4)}</div>
-                                                        <div className="text-xs text-muted-foreground">{formatTime(rec.duration)}</div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePlayPause(rec)}>
-                                                        {playingId === rec.id ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                                                    </Button>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownloadRecording(rec)}>
-                                                        <Download className="w-4 h-4" />
-                                                    </Button>
-                                                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-red-100 hover:text-destructive" onClick={() => handleDeleteRecording(rec.id)}>
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
                         </div>
 
                         <div className="my-10">
@@ -817,59 +468,10 @@ function HireADesignerPageContent() {
                                 What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
                             </Label>
                             <p className="text-sm text-gray-600 mb-4">
-                                Add logos and images, as well as any references you'd like us to look at.
+                                Add logos, voice notes, and images, as well as any references you'd like us to look at.
                             </p>
                             <div className="max-w-3xl">
-                                <div
-                                    className={cn(
-                                        "border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors bg-gray-50",
-                                        isDragging ? "border-primary bg-primary/10 border-solid" : "border-gray-300 hover:border-gray-400 hover:bg-gray-100"
-                                    )}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    onDragEnter={handleDragEnter}
-                                    onDragOver={handleDragOver}
-                                    onDragLeave={handleDragLeave}
-                                    onDrop={handleDrop}
-                                >
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        multiple
-                                        className="hidden"
-                                        onChange={(e) => handleFileSelect(e.target.files)}
-                                        accept=".pdf,.png,.jpeg,.jpg,.ai,.psd,.tif,.cdr,.eps,.gif,.doc,.docx,.bpm,.webm,.m4a,.mp3"
-                                    />
-                                    <UploadCloud className="mx-auto h-12 w-12 text-gray-500" />
-                                    <p className="mt-4 text-gray-800">Click to browse, or drag and drop a file here</p>
-                                    <p className="mt-2 text-xs text-gray-500">
-                                      Supported file types: pdf, png, jpeg, jpg, ai, psd, tif, cdr, eps, gif, doc, docx, bpm<br/>
-                                      Supported file size: maximum 400 MB
-                                    </p>
-                                </div>
-                                
-                                {uploadedFiles.length > 0 && (
-                                    <div className="mt-6">
-                                        <h3 className="font-semibold mb-4 text-gray-800">Uploaded Files:</h3>
-                                        <div className="space-y-3">
-                                            {uploadedFiles.map(f => (
-                                                <Card key={f.id} className="flex items-center p-4 gap-4 hover:shadow-md transition-shadow">
-                                                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-                                                        <FileIcon className="h-6 w-6 text-gray-500" />
-                                                    </div>
-                                                    <div className="flex-1 overflow-hidden">
-                                                        <p className="text-sm font-medium truncate text-gray-800">{f.file.name}</p>
-                                                        <p className="text-xs text-gray-500">{formatFileSize(f.file.size)}</p>
-                                                        {f.progress > 0 && f.progress < 100 && <Progress value={f.progress} className="h-1 mt-2" />}
-                                                        {f.error && <p className="text-xs text-destructive mt-1">{f.error}</p>}
-                                                    </div>
-                                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-500 hover:bg-red-100 hover:text-destructive" onClick={() => removeFile(f.id)}>
-                                                        <X className="h-4 w-4" />
-                                                    </Button>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                               <OptimizedFileUploader onFilesUploaded={handleFilesUploaded} />
                             </div>
                         </div>
 
@@ -897,11 +499,6 @@ function HireADesignerPageContent() {
                                         label="Description:"
                                         value={formState.designDescription ? 'Provided' : 'Not provided'}
                                         isComplete={!!formState.designDescription.trim()}
-                                    />
-                                     <SummaryItem
-                                        label="Voice Note:"
-                                        value={recordings.length > 0 ? `${recordings.length} added` : 'None'}
-                                        isComplete={recordings.length > 0}
                                     />
                                     <SummaryItem
                                         label="Contact Mode:"
@@ -965,10 +562,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
-
-
-    
-
-
