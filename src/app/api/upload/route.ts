@@ -1,3 +1,4 @@
+
 'use server';
 import { NextResponse } from 'next/server';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -26,8 +27,11 @@ export async function POST(request: Request) {
     const fileName = `submissions/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '-')}`;
     const storageRef = ref(storage, fileName);
 
+    // Correctly get the file contents as an ArrayBuffer
+    const fileBuffer = await file.arrayBuffer();
+
     // Upload the file buffer
-    const snapshot = await uploadBytes(storageRef, file, {
+    const snapshot = await uploadBytes(storageRef, fileBuffer, {
       contentType: file.type,
     });
     
