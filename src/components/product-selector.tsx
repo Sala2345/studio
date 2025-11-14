@@ -169,7 +169,7 @@ export function ProductSelector({ selectedProduct, onProductSelect, selectedVari
         <Card>
              <CardHeader>
                 <CardTitle className="text-lg font-bold text-gray-800">Choose Your Product</CardTitle>
-                 <p className="text-sm text-gray-600">Select the product you'd like to hire a designer for.</p>
+                 <p className="text-[13px] text-gray-600">Select the product you'd like to hire a designer for.</p>
             </CardHeader>
             <CardContent>
                 <div className="relative mb-6">
