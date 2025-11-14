@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { getProducts } from '@/services/shopify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -52,14 +52,14 @@ interface ProductSelectorProps {
 const PRODUCTS_PER_PAGE = 6;
 
 export function ProductSelector({ selectedProduct, onProductSelect, selectedVariantId, onVariantSelect }: ProductSelectorProps) {
-    const [products, setProducts] = useState<ShopifyProduct[]>([]);
-    const [filteredProducts, setFilteredProducts] = useState<ShopifyProduct[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [products, setProducts] = React.useState<ShopifyProduct[]>([]);
+    const [filteredProducts, setFilteredProducts] = React.useState<ShopifyProduct[]>([]);
+    const [isLoading, setIsLoading] = React.useState(true);
+    const [searchTerm, setSearchTerm] = React.useState('');
+    const [currentPage, setCurrentPage] = React.useState(1);
     const { toast } = useToast();
 
-    useEffect(() => {
+    React.useEffect(() => {
         async function fetchProducts() {
             setIsLoading(true);
             try {
@@ -84,7 +84,7 @@ export function ProductSelector({ selectedProduct, onProductSelect, selectedVari
         fetchProducts();
     }, [toast]);
 
-    useEffect(() => {
+    React.useEffect(() => {
         const lowercasedFilter = searchTerm.toLowerCase();
         const filtered = products.filter(product =>
             product.title.toLowerCase().includes(lowercasedFilter)
@@ -127,7 +127,7 @@ export function ProductSelector({ selectedProduct, onProductSelect, selectedVari
         return (
              <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg font-medium text-gray-800">Selected Product</CardTitle>
+                    <CardTitle className="text-lg font-bold text-gray-800">Selected Product</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-start gap-4 p-4 border rounded-lg flex-col sm:flex-row">
@@ -168,7 +168,7 @@ export function ProductSelector({ selectedProduct, onProductSelect, selectedVari
     return (
         <Card>
              <CardHeader>
-                <CardTitle className="text-lg font-medium text-gray-800">Choose Your Product</CardTitle>
+                <CardTitle className="text-lg font-bold text-gray-800">Choose Your Product</CardTitle>
                  <p className="text-sm text-gray-600">Select the product you'd like to hire a designer for.</p>
             </CardHeader>
             <CardContent>

@@ -76,6 +76,7 @@ interface FormState {
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
     const [recordings, setRecordings] = useState<Recording[]>([]);
+    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [playingId, setPlayingId] = useState<number | null>(null);
@@ -214,6 +215,7 @@ function HireADesignerPageContent() {
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setHasPermission(true);
             const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
             mediaRecorderRef.current = mediaRecorder;
             let audioChunks: Blob[] = [];
@@ -245,6 +247,7 @@ function HireADesignerPageContent() {
 
         } catch (error) {
             console.error('Error accessing microphone:', error);
+            setHasPermission(false);
             toast({
                 variant: 'destructive',
                 title: 'Microphone Access Denied',
@@ -697,7 +700,7 @@ function HireADesignerPageContent() {
                         </div>
                         
                         <div className="mt-10">
-                            <Label htmlFor="designDescription" className="text-lg font-medium text-gray-800 mb-2 block">
+                            <Label htmlFor="designDescription" className="text-lg font-bold text-gray-800 mb-2 block">
                                 Describe your design in a few words
                                 <span className="text-destructive ml-1">*</span>
                             </Label>
@@ -773,7 +776,7 @@ function HireADesignerPageContent() {
                         </div>
                         
                         <div className="mt-10">
-                            <Label className="text-lg font-medium text-gray-800 mb-2 block">
+                            <Label className="text-lg font-bold text-gray-800 mb-2 block">
                                 What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
                             </Label>
                             <p className="text-sm text-gray-600 mb-4">
