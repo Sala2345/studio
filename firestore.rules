@@ -7,16 +7,16 @@ service cloud.firestore {
     match /designRequests/{requestId} {
       allow create: if true;
       
-      // Allow public read access to design requests
-      allow get: if true;
+      // Allow read access only to specific admin emails
+      allow get: if request.auth != null && request.auth.token.email in ['david@craniumx.ca', 'davidhayribs@gmail.com'];
       
       // Deny updates and deletes from anyone for now
       allow update, delete: if false;
     }
 
-    // Allow public listing of all design requests for the log page
+    // Allow listing of all design requests only for specific admin emails
     match /{path=**}/designRequests/{requestId} {
-      allow list: if true;
+      allow list: if request.auth != null && request.auth.token.email in ['david@craniumx.ca', 'davidhayribs@gmail.com'];
     }
 
     // Default deny all other collections/documents
