@@ -210,7 +210,7 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
                   <h3 className="text-sm font-semibold text-black mb-2 leading-snug">
                     {style.title}
                   </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">
                     {style.description}
                   </p>
                 </div>
