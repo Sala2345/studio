@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Loader2 } from 'lucide-react';
+import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
@@ -497,7 +497,9 @@ function HireADesignerPageContent() {
              // Clean up data for Firestore
             delete (preliminaryFormState as any).selectedProduct;
             delete (preliminaryFormState as any).name;
-            delete (preliminaryFormState as any).shopifyCustomerId;
+            if(!(preliminaryFormState as any).shopifyCustomerId) {
+                delete (preliminaryFormState as any).shopifyCustomerId;
+            }
             delete (preliminaryFormState as any).streetAddress;
             delete (preliminaryFormState as any).city;
             delete (preliminaryFormState as any).province;
@@ -600,6 +602,21 @@ function HireADesignerPageContent() {
             </div>
         )
     }
+
+    const SummaryItem = ({ label, value, isComplete }: { label: string, value: string, isComplete: boolean }) => (
+        <div className="flex items-center justify-between bg-white rounded-lg p-3">
+            <div className="flex items-center gap-3">
+                <div className={cn(
+                    "w-5 h-5 rounded-full border-2 flex items-center justify-center",
+                    isComplete ? 'bg-green-500 border-green-500' : 'border-gray-300'
+                )}>
+                    {isComplete && <CheckCircle className="w-3 h-3 text-white" />}
+                </div>
+                <span className="text-sm text-gray-600">{label}</span>
+            </div>
+            <span className="text-sm font-medium text-gray-800">{value}</span>
+        </div>
+    );
 
 
     return (
@@ -822,51 +839,44 @@ function HireADesignerPageContent() {
                             />
                         </div>
 
-                         <div className="mt-12 max-w-md mx-auto text-center">
-                             <div className="submit-summary" id="submitSummary">
-                                <h3>Review Your Request</h3>
-                                <div className="summary-items" id="summaryItems">
-                                     <div className="summary-item">
-                                        <div className={cn("summary-icon", formState.selectedProduct ? 'complete' : 'incomplete' )}>
-                                            <CheckCircle />
-                                        </div>
-                                        <div className="summary-label">Product:</div>
-                                        <div className="summary-value">{formState.selectedProduct?.title || 'Not selected'}</div>
-                                    </div>
-                                     <div className="summary-item">
-                                        <div className={cn("summary-icon", formState.designDescription ? 'complete' : 'incomplete' )}>
-                                            <CheckCircle />
-                                        </div>
-                                        <div className="summary-label">Description:</div>
-                                        <div className="summary-value">{formState.designDescription ? 'Provided' : 'Not provided'}</div>
-                                    </div>
-                                    <div className="summary-item">
-                                        <div className={cn("summary-icon", formState.contactMode ? 'complete' : 'incomplete' )}>
-                                            <CheckCircle />
-                                        </div>
-                                        <div className="summary-label">Contact Mode:</div>
-                                        <div className="summary-value capitalize">{formState.contactMode || 'Not selected'}</div>
-                                    </div>
-                                    <div className="summary-item">
-                                        <div className={cn("summary-icon", (uploadedFiles.length + recordings.length) > 0 ? 'complete' : 'incomplete' )}>
-                                            <CheckCircle />
-                                        </div>
-                                        <div className="summary-label">Files:</div>
-                                        <div className="summary-value">{uploadedFiles.length + recordings.length} file(s)</div>
-                                    </div>
+                        <div className="mt-12 max-w-2xl mx-auto">
+                            <div className="bg-gray-50 rounded-xl p-6 sm:p-8 space-y-4">
+                                <h3 className="text-center text-xl font-semibold text-gray-800 mb-6">Review Your Request</h3>
+                                <div className="space-y-3">
+                                    <SummaryItem
+                                        label="Product:"
+                                        value={formState.selectedProduct?.title || 'Not selected'}
+                                        isComplete={!!formState.selectedProduct}
+                                    />
+                                    <SummaryItem
+                                        label="Description:"
+                                        value={formState.designDescription ? 'Provided' : 'Not provided'}
+                                        isComplete={!!formState.designDescription.trim()}
+                                    />
+                                    <SummaryItem
+                                        label="Contact Mode:"
+                                        value={formState.contactMode.charAt(0).toUpperCase() + formState.contactMode.slice(1)}
+                                        isComplete={!!formState.contactMode}
+                                    />
                                 </div>
                             </div>
                             
-                            <Button onClick={handleSubmit} disabled={isSubmitting || isUserLoading} size="lg" className="hire-designer-btn w-full">
+                            <Button 
+                                onClick={handleSubmit} 
+                                disabled={isSubmitting || isUserLoading} 
+                                size="lg" 
+                                className="w-full mt-6 text-lg py-7"
+                            >
                                 {isSubmitting ? (
                                     <Loader2 className="h-6 w-6 animate-spin" />
                                 ) : (
-                                    <span className="btn-text">
+                                    <>
+                                        <Upload className="mr-3 h-5 w-5" />
                                         Hire a Designer
-                                    </span>
+                                    </>
                                 )}
                             </Button>
-                            {submissionError && <div className="error-message visible">{submissionError}</div>}
+                            {submissionError && <div className="text-center mt-4 text-sm text-destructive">{submissionError}</div>}
                         </div>
                     </main>
 
@@ -885,5 +895,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
