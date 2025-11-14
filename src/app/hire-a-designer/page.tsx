@@ -720,9 +720,9 @@ function HireADesignerPageContent() {
                             <div className="mt-4">
                                 <p className="text-sm text-gray-600">You can also add a comment with a voice note.</p>
                                 <Button
-                                    variant="link"
+                                    variant="outline"
                                     onClick={handleVoiceNoteClick}
-                                    className={cn('p-0 h-auto text-primary hover:text-primary transition-colors', isRecording && 'text-destructive')}
+                                    className={cn('text-primary border-primary hover:bg-primary/5 hover:text-primary transition-colors', isRecording && 'text-destructive')}
                                 >
                                     <Mic className={cn('mr-2 h-4 w-4', isRecording && 'animate-pulse')} />
                                     {isRecording ? 'Stop Recording' : 'Add a Voice note'}
@@ -843,20 +843,50 @@ function HireADesignerPageContent() {
                             <div className="bg-gray-50 rounded-xl p-6 sm:p-8 space-y-4">
                                 <h3 className="text-center text-xl font-semibold text-gray-800 mb-6">Review Your Request</h3>
                                 <div className="space-y-3">
+                                     <SummaryItem
+                                        label="Contact Information:"
+                                        value={formState.name && formState.email && formState.phoneNumber && formState.streetAddress ? 'Complete' : 'Incomplete'}
+                                        isComplete={!!(formState.name && formState.email && formState.phoneNumber && formState.streetAddress)}
+                                    />
                                     <SummaryItem
-                                        label="Product:"
-                                        value={formState.selectedProduct?.title || 'Not selected'}
-                                        isComplete={!!formState.selectedProduct}
+                                        label="Product and Variant:"
+                                        value={formState.selectedProduct ? `${formState.selectedProduct.title}${formState.selectedVariantTitle ? ` (${formState.selectedVariantTitle})` : ''}` : 'Not selected'}
+                                        isComplete={!!formState.selectedProduct && !!formState.selectedVariantId}
                                     />
                                     <SummaryItem
                                         label="Description:"
                                         value={formState.designDescription ? 'Provided' : 'Not provided'}
                                         isComplete={!!formState.designDescription.trim()}
                                     />
+                                     <SummaryItem
+                                        label="Voice Note:"
+                                        value={recordings.length > 0 ? `${recordings.length} added` : 'None'}
+                                        isComplete={recordings.length > 0}
+                                    />
                                     <SummaryItem
                                         label="Contact Mode:"
                                         value={formState.contactMode.charAt(0).toUpperCase() + formState.contactMode.slice(1)}
                                         isComplete={!!formState.contactMode}
+                                    />
+                                     <SummaryItem
+                                        label="Style:"
+                                        value={formState.designStyle ? formState.designStyle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not specified'}
+                                        isComplete={!!formState.designStyle}
+                                    />
+                                    <SummaryItem
+                                        label="Colors:"
+                                        value={formState.colors ? 'Specified' : 'Not specified'}
+                                        isComplete={!!formState.colors}
+                                    />
+                                    <SummaryItem
+                                        label="Files:"
+                                        value={uploadedFiles.length > 0 ? `${uploadedFiles.length} file(s)` : 'None'}
+                                        isComplete={uploadedFiles.length > 0}
+                                    />
+                                    <SummaryItem
+                                        label="Inspiration Links:"
+                                        value={formState.inspirationLinks.filter(l => l).length > 0 ? `${formState.inspirationLinks.filter(l => l).length} link(s)` : 'None'}
+                                        isComplete={formState.inspirationLinks.filter(l => l).length > 0}
                                     />
                                 </div>
                             </div>
