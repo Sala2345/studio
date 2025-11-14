@@ -1,61 +1,31 @@
 
-/**
- * @file Firestore Security Rules
- * @description This ruleset allows anyone to submit a design request but restricts access to logs to authenticated users.
- *
- * Data Structure:
- * - /customers/{customerId}: Stores customer information. Can be created by anyone, but only the specific user (if authenticated) can read or update their own data.
- * - /customers/{customerId}/designRequests/{designRequestId}: Stores design requests. Can be created by anyone. Read/update/delete is restricted to the owning customer if authenticated.
- * - /files/{fileId}: Stores metadata about uploaded files. Public read access, create allowed for anyone, updates restricted.
- *
- * Key Security Decisions:
- * - Public write access for creating new customers and design requests to support anonymous submissions.
- * - Admin users (authenticated) can read all design requests.
- * - Listing all customers or all design requests across all customers is disallowed for security except for admins.
- * - The 'log-all-form-works' page will rely on authenticated access to list all design requests, enforced by a collection group query rule.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Secure customer profiles. Allows public creation for submissions.
-     * @path /customers/{customerId}
-     * @allow (create) if true
-     * @allow (get, list, update, delete) if request.auth != null
-     */
+    // Allow public creation of customer and design request documents
     match /customers/{customerId} {
       allow create: if true;
+      // Authenticated users can manage their own data
       allow get, list, update, delete: if request.auth != null;
     }
 
-    /**
-     * @description Secure design requests. Allows public creation for submissions.
-     * @path /customers/{customerId}/designRequests/{designRequestId}
-     * @allow (create) if true
-     * @allow (get, update, delete) if request.auth != null
-     * @allow (list) if request.auth != null
-     */
     match /customers/{customerId}/designRequests/{designRequestId} {
-        allow create: if true;
-        allow get, update, delete: if request.auth != null;
-        
-        // This rule allows any authenticated user (e.g., an admin) to list all design requests
-        // via a collection group query, as used on the log page.
-        allow list: if request.auth != null;
+      allow create: if true;
+      // Allow authenticated users to get/update their own requests
+      allow get, update, delete: if request.auth != null;
     }
 
-    /**
-     * @description Manages file metadata. Public read, anyone can create.
-     * @path /files/{fileId}
-     * @allow (get, list) if true
-     * @allow (create) if true
-     * @deny (update, delete)
-     */
+    // Allow any authenticated user to list all design requests via a collection group query.
+    match /{path=**}/designRequests/{designRequestId} {
+      allow list: if request.auth != null;
+    }
+
+    // File metadata rules
     match /files/{fileId} {
-      allow get, list: if true;
-      allow create: if true; // Allow anyone to upload a file as part of a submission
-      allow update, delete: if false; // Disallow updates and deletes for now
+      allow get, list: if true; // Public read for file metadata
+      allow create: if true;     // Public create for file uploads
+      deny update, delete;       // Disallow modification
     }
   }
 }
