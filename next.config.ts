@@ -2,9 +2,6 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  experimental: {
-    bodySizeLimit: '10mb',
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -7,13 +7,6 @@ import { initializeFirebase } from '@/firebase';
 // Initialize Firebase client-side SDKs. This is safe on the server in Next.js.
 const { storage } = initializeFirebase();
 
-// Disable the default body parser for this route
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
