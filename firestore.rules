@@ -36,7 +36,7 @@ service cloud.firestore {
      */
     match /customers/{customerId}/designRequests/{designRequestId} {
         allow create: if true; // Allow anyone to create a design request
-        allow get, update, delete: if request.auth != null && request.auth.uid == customerId;
+        allow get, update, delete: if request.auth != null && request.auth.uid == customerId || request.auth == null;
         
         // This rule allows an authenticated user (e.g., an admin) to list all design requests
         // via a collection group query, as used on the log page.
