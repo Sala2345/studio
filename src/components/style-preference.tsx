@@ -145,7 +145,7 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
 
       {/* Style Selection Section */}
       <div>
-        <h2 className="text-[17px] font-semibold text-gray-800 mb-8">
+        <h2 className="text-[17px] font-semibold text-black mb-8">
           {styleLabel}{' '}
           <span className="text-sm text-muted-foreground font-normal">{styleOptionalText}</span>
         </h2>
@@ -153,7 +153,7 @@ export const StylePreference: React.FC<StylePreferenceProps> = ({
         <RadioGroup 
             value={selectedStyle}
             onValueChange={handleStyleChange}
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 max-w-[1600px]"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-5 max-w-[1600px]"
         >
           {styleOptions.map((style, index) => {
             const styleId = style.title.toLowerCase().replace(/\s+/g, '-');
