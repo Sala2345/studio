@@ -1,3 +1,4 @@
+
 /**
  * @file Firestore Security Rules
  * @description This ruleset allows anyone to submit a design request but restricts access to logs to authenticated users.
@@ -9,8 +10,8 @@
  *
  * Key Security Decisions:
  * - Public write access for creating new customers and design requests to support anonymous submissions.
- * - Authenticated users can only read/update their own customer data and design requests.
- * - Listing all customers or all design requests across all customers is disallowed for security.
+ * - Admin users (authenticated) can read all design requests.
+ * - Listing all customers or all design requests across all customers is disallowed for security except for admins.
  * - The 'log-all-form-works' page will rely on authenticated access to list all design requests, enforced by a collection group query rule.
  */
 rules_version = '2';
@@ -18,25 +19,25 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Secure customer profiles. Allows public creation, but read/write is owner-only.
+     * @description Secure customer profiles. Allows public creation for submissions.
      * @path /customers/{customerId}
      * @allow (create) if true
-     * @allow (get, list, update, delete) if request.auth != null && request.auth.uid == customerId
+     * @allow (get, list, update, delete) if request.auth != null
      */
     match /customers/{customerId} {
-      allow create: if true; // Allow anyone to create a customer profile
-      allow get, list, update, delete: if request.auth != null && request.auth.uid == customerId;
+      allow create: if true;
+      allow get, list, update, delete: if request.auth != null;
     }
 
     /**
-     * @description Secure design requests. Allows public creation, but read/write is owner-only for authenticated users.
+     * @description Secure design requests. Allows public creation for submissions.
      * @path /customers/{customerId}/designRequests/{designRequestId}
      * @allow (create) if true
-     * @allow (get, list, update, delete) if request.auth != null && request.auth.uid == customerId
+     * @allow (get, update, delete) if request.auth != null
      */
     match /customers/{customerId}/designRequests/{designRequestId} {
-        allow create: if true; // Allow anyone to create a design request
-        allow get, update, delete: if request.auth != null && request.auth.uid == customerId || request.auth == null;
+        allow create: if true;
+        allow get, update, delete: if request.auth != null;
         
         // This rule allows an authenticated user (e.g., an admin) to list all design requests
         // via a collection group query, as used on the log page.

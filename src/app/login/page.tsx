@@ -7,96 +7,85 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/firebase';
-import { sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { useAuth, useUser } from '@/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [emailSent, setEmailSent] = useState(false);
   
   const auth = useAuth();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
-  // Check if the page is being loaded from a sign-in link
   useEffect(() => {
-    const handleEmailLinkSignIn = async () => {
-      const href = window.location.href;
-      if (isSignInWithEmailLink(auth, href)) {
-        let storedEmail = window.localStorage.getItem('emailForSignIn');
-        if (!storedEmail) {
-          // If the email is not stored, prompt the user for it.
-          // This can happen if they open the link on a different device.
-          storedEmail = window.prompt('Please provide your email to complete the sign-in.');
-        }
+    // If user is already logged in, redirect them away from the login page
+    if (!isUserLoading && user) {
+      router.push('/log-all-form-works');
+    }
+  }, [user, isUserLoading, router]);
 
-        if (storedEmail) {
-          setIsLoading(true);
-          try {
-            await signInWithEmailLink(auth, storedEmail, href);
-            window.localStorage.removeItem('emailForSignIn');
-            toast({
-              title: 'Login Successful',
-              description: 'You have been securely logged in.',
-            });
-            router.push('/log-all-form-works');
-          } catch (error) {
-            console.error("Sign in with email link error:", error);
-            setError('Failed to sign in. The link may be invalid or expired.');
-            toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: 'The sign-in link was invalid or has expired. Please try again.',
-            });
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      }
-    };
-    handleEmailLinkSignIn();
-  }, [auth, router, toast]);
-
-  const handleSendLink = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAuth = async (authAction: 'signIn' | 'signUp') => {
+    if (!email || !password) {
+        setError('Please enter both email and password.');
+        return;
+    }
+    
     setIsLoading(true);
     setError(null);
-    setEmailSent(false);
 
     try {
-      // Configuration for the sign-in link
-      const actionCodeSettings = {
-        url: `${window.location.origin}/log-all-form-works`, // Redirect to the log page after sign in
-        handleCodeInApp: true,
-      };
-
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-      
-      // Save the email locally to use when the user returns
-      window.localStorage.setItem('emailForSignIn', email);
-      
-      setEmailSent(true);
-      toast({
-        title: 'Sign-in Link Sent',
-        description: `A sign-in link has been sent to ${email}. Check your inbox!`,
-      });
+      if (authAction === 'signIn') {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast({
+          title: 'Login Successful',
+          description: 'You have been securely logged in.',
+        });
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+        toast({
+          title: 'Sign Up Successful',
+          description: 'Your account has been created and you are now logged in.',
+        });
+      }
+      router.push('/log-all-form-works');
 
     } catch (error: any) {
-      console.error("Send link error:", error);
-      setError('Failed to send sign-in link. Please check the email address and try again.');
+      console.error(`${authAction} error:`, error);
+      // Provide more specific error messages
+      let friendlyMessage = 'An unexpected error occurred. Please try again.';
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        friendlyMessage = 'Invalid email or password. Please try again.';
+      } else if (error.code === 'auth/email-already-in-use') {
+        friendlyMessage = 'An account with this email already exists. Please sign in.';
+      } else if (error.code === 'auth/weak-password') {
+        friendlyMessage = 'The password is too weak. It must be at least 6 characters long.';
+      }
+      
+      setError(friendlyMessage);
       toast({
         variant: 'destructive',
-        title: 'Failed to Send Link',
-        description: 'Please ensure the email address is correct and try again.',
+        title: `${authAction === 'signIn' ? 'Login' : 'Sign Up'} Failed`,
+        description: friendlyMessage,
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (isUserLoading || user) {
+    // Show a loading screen or nothing while redirecting
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -104,42 +93,43 @@ export default function LoginPage() {
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl">Admin Login</CardTitle>
           <CardDescription>
-            {emailSent 
-              ? "Check your email for the sign-in link."
-              : "Enter your email to receive a secure sign-in link."
-            }
+            Enter your email and password to access the dashboard.
           </CardDescription>
         </CardHeader>
-        {!emailSent ? (
-          <form onSubmit={handleSendLink}>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                    id="email"
-                    type="email"
-                    placeholder="admin@example.com"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoading}
-                    />
-                </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Send Sign-in Link"}
-                </Button>
-              </CardFooter>
-          </form>
-        ) : (
-          <CardContent>
-            <p className="text-center text-muted-foreground">
-                Once you click the link in your email, you will be automatically logged in. You can close this tab.
-            </p>
-          </CardContent>
-        )}
+        <CardContent className="space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                id="email"
+                type="email"
+                placeholder="admin@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                />
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+        </CardContent>
+        <CardFooter className="flex flex-col gap-4">
+            <Button onClick={() => handleAuth('signIn')} className="w-full" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign In"}
+            </Button>
+            <Button onClick={() => handleAuth('signUp')} className="w-full" variant="outline" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sign Up"}
+            </Button>
+        </CardFooter>
       </Card>
     </div>
   );
