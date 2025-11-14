@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { OptimizedFileUploader, type UploadedFileData } from '@/components/optimized-file-uploader';
+import { cn } from '@/lib/utils';
 
 
 const designSteps = [
@@ -562,3 +563,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
