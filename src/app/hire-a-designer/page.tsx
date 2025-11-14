@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { doc, setDoc, updateDoc, collection, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { Progress } from '@/components/ui/progress';
 import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
@@ -26,6 +26,7 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import imageCompression from 'browser-image-compression';
+import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 const designSteps = [
@@ -436,23 +437,23 @@ function HireADesignerPageContent() {
                             )
                         );
                     },
-                    async (error) => {
+                    (error) => {
                         console.error(`Upload failed for ${fileToUpload.file.name}:`, error);
-                        await updateDoc(designRequestRef, {
+                         updateDocumentNonBlocking(designRequestRef, {
                             status: 'upload-error',
                             fileErrors: arrayUnion({ fileName: fileToUpload.file.name, error: error.message })
                         });
                     },
                     async () => {
                         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                        await updateDoc(designRequestRef, {
+                        updateDocumentNonBlocking(designRequestRef, {
                             fileUrls: arrayUnion(downloadURL)
                         });
                     }
                 );
             } catch (error) {
                 console.error(`Error processing file ${fileToUpload.file.name}:`, error);
-                 await updateDoc(designRequestRef, {
+                 updateDocumentNonBlocking(designRequestRef, {
                     status: 'upload-error',
                     fileErrors: arrayUnion({ fileName: fileToUpload.file.name, error: (error as Error).message })
                 });
@@ -465,6 +466,11 @@ function HireADesignerPageContent() {
             toast({ variant: 'destructive', title: 'Database not available.' });
             return;
         }
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to submit a request.' });
+            return;
+        }
+
 
         const fullShippingAddress = [formState.streetAddress, formState.city, formState.province, formState.postalCode].filter(Boolean).join(', ');
 
@@ -489,116 +495,108 @@ function HireADesignerPageContent() {
         setSubmissionError(null);
         setIsSubmitting(true);
 
-        try {
-            const designRequestId = doc(collection(firestore, 'ids')).id;
-            const customerId = user?.uid || formState.email.replace(/[^a-zA-Z0-9]/g, '');
+        const designRequestId = doc(collection(firestore, 'ids')).id;
+        const customerId = user.uid;
 
-            const customerRef = doc(firestore, 'customers', customerId);
-            const customerData: any = {
-                id: customerId,
-                email: formState.email,
-                name: formState.name,
-                phoneNumber: formState.phoneNumber,
-                shippingAddress: fullShippingAddress,
-                updatedAt: serverTimestamp(),
-                createdAt: serverTimestamp(),
-            };
-            if (formState.shopifyCustomerId) {
-                customerData.shopifyCustomerId = formState.shopifyCustomerId;
-            }
-            await setDoc(customerRef, customerData, { merge: true });
-
-            const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
-             const preliminaryFormState = {
-                ...formState,
-                id: designRequestId,
-                customerId: customerId,
-                customerName: formState.name,
-                productId: formState.selectedProduct?.id,
-                productTitle: formState.selectedProduct?.title,
-                shippingAddress: fullShippingAddress,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                status: 'pending',
-                fileUrls: [], // Will be populated by background process
-            };
-             // Clean up data for Firestore
-            delete (preliminaryFormState as any).selectedProduct;
-            delete (preliminaryFormState as any).name;
-            if(!(preliminaryFormState as any).shopifyCustomerId) {
-                delete (preliminaryFormState as any).shopifyCustomerId;
-            }
-            delete (preliminaryFormState as any).streetAddress;
-            delete (preliminaryFormState as any).city;
-            delete (preliminaryFormState as any).province;
-            delete (preliminaryFormState as any).postalCode;
-
-            await setDoc(designRequestRef, preliminaryFormState);
-
-            // Show success message immediately
-            setSubmissionSuccess(true);
-            setIsSubmitting(false); // Allow UI to update to success screen
-
-            // --- Start background processing ---
-
-            // 1. Files
-            const allFilesToUpload: UploadableFile[] = [
-                ...uploadedFiles,
-                ...recordings.map(rec => ({
-                    file: new File([rec.blob], `voicenote-${rec.id}.webm`, { type: 'audio/webm' }),
-                    id: rec.id.toString(),
-                    progress: 0,
-                }))
-            ];
-            if (allFilesToUpload.length > 0) {
-                 processAndUploadFiles(designRequestRef, customerId, designRequestId, allFilesToUpload)
-                    .then(() => updateDoc(designRequestRef, { status: 'files-uploaded' }))
-                    .catch(() => { /* Error is handled inside processAndUploadFiles */});
-            } else {
-                await updateDoc(designRequestRef, { status: 'files-uploaded' });
-            }
-
-            // 2. Shopify Order
-            if (formState.selectedVariantId) {
-                createOrderFromLogFlow({ log: preliminaryFormState as any })
-                    .then(async (draftOrderResult) => {
-                        if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
-                            console.warn("Could not create Shopify draft order:", draftOrderResult.error);
-                            await updateDoc(designRequestRef, { 
-                                status: 'order-error',
-                                orderError: draftOrderResult.error || 'Unknown Shopify error'
-                            });
-                        } else {
-                            setInvoiceUrl(draftOrderResult.invoiceUrl); // Still set for the UI
-                            await updateDoc(designRequestRef, { 
-                                status: 'complete',
-                                invoiceUrl: draftOrderResult.invoiceUrl,
-                                shopifyOrderId: draftOrderResult.orderId,
-                             });
-                        }
-                    })
-                    .catch(async (err) => {
-                        console.error("Flow execution failed:", err);
-                        await updateDoc(designRequestRef, { 
-                            status: 'order-error',
-                            orderError: (err as Error).message || 'Flow execution failed'
-                        });
-                    });
-            } else {
-                console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
-                await updateDoc(designRequestRef, { status: 'complete' }); // Complete if no order needed
-            }
-            // --- End background processing ---
-
-
-        } catch (error: any) {
-            console.error("Submission failed:", error);
-            const errorMessage = error.message || 'An unknown error occurred during submission.';
-            setSubmissionError(errorMessage);
-            setSubmissionSuccess(false); // Ensure we don't show success screen on error
-            setIsSubmitting(false);
-            toast({ variant: 'destructive', title: 'Submission Failed', description: errorMessage });
+        const customerRef = doc(firestore, 'customers', customerId);
+        const customerData: any = {
+            id: customerId,
+            email: formState.email,
+            name: formState.name,
+            phoneNumber: formState.phoneNumber,
+            shippingAddress: fullShippingAddress,
+            updatedAt: serverTimestamp(),
+        };
+        if (formState.shopifyCustomerId) {
+            customerData.shopifyCustomerId = formState.shopifyCustomerId;
         }
+        // Create or merge customer data without blocking
+        setDocumentNonBlocking(customerRef, customerData, { merge: true });
+
+
+        const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
+        const preliminaryFormState = {
+            ...formState,
+            id: designRequestId,
+            customerId: customerId,
+            customerName: formState.name,
+            productId: formState.selectedProduct?.id,
+            productTitle: formState.selectedProduct?.title,
+            shippingAddress: fullShippingAddress,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            status: 'pending',
+            fileUrls: [], // Will be populated by background process
+        };
+        
+        // Clean up data for Firestore
+        delete (preliminaryFormState as any).selectedProduct;
+        delete (preliminaryFormState as any).name;
+        if(!(preliminaryFormState as any).shopifyCustomerId) {
+            delete (preliminaryFormState as any).shopifyCustomerId;
+        }
+        delete (preliminaryFormState as any).streetAddress;
+        delete (preliminaryFormState as any).city;
+        delete (preliminaryFormState as any).province;
+        delete (preliminaryFormState as any).postalCode;
+
+        // Create the design request document without blocking
+        setDocumentNonBlocking(designRequestRef, preliminaryFormState, { merge: false });
+
+        // Show success message immediately
+        setSubmissionSuccess(true);
+        setIsSubmitting(false); // Allow UI to update to success screen
+
+        // --- Start background processing ---
+
+        // 1. Files
+        const allFilesToUpload: UploadableFile[] = [
+            ...uploadedFiles,
+            ...recordings.map(rec => ({
+                file: new File([rec.blob], `voicenote-${rec.id}.webm`, { type: 'audio/webm' }),
+                id: rec.id.toString(),
+                progress: 0,
+            }))
+        ];
+        if (allFilesToUpload.length > 0) {
+                processAndUploadFiles(designRequestRef, customerId, designRequestId, allFilesToUpload)
+                .then(() => updateDocumentNonBlocking(designRequestRef, { status: 'files-uploaded' }))
+                .catch(() => { /* Error is handled inside processAndUploadFiles */});
+        } else {
+            updateDocumentNonBlocking(designRequestRef, { status: 'files-uploaded' });
+        }
+
+        // 2. Shopify Order
+        if (formState.selectedVariantId) {
+            createOrderFromLogFlow({ log: preliminaryFormState as any })
+                .then(async (draftOrderResult) => {
+                    if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
+                        console.warn("Could not create Shopify draft order:", draftOrderResult.error);
+                        updateDocumentNonBlocking(designRequestRef, { 
+                            status: 'order-error',
+                            orderError: draftOrderResult.error || 'Unknown Shopify error'
+                        });
+                    } else {
+                        setInvoiceUrl(draftOrderResult.invoiceUrl); // Still set for the UI
+                        updateDocumentNonBlocking(designRequestRef, { 
+                            status: 'complete',
+                            invoiceUrl: draftOrderResult.invoiceUrl,
+                            shopifyOrderId: draftOrderResult.orderId,
+                            });
+                    }
+                })
+                .catch(async (err) => {
+                    console.error("Flow execution failed:", err);
+                    updateDocumentNonBlocking(designRequestRef, { 
+                        status: 'order-error',
+                        orderError: (err as Error).message || 'Flow execution failed'
+                    });
+                });
+        } else {
+            console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
+            updateDocumentNonBlocking(designRequestRef, { status: 'complete' }); // Complete if no order needed
+        }
+        // --- End background processing ---
     };
 
     if (submissionSuccess) {
@@ -638,7 +636,7 @@ function HireADesignerPageContent() {
                     "w-5 h-5 rounded-full border-2 flex items-center justify-center",
                     isComplete ? 'bg-destructive border-destructive' : 'border-gray-300'
                 )}>
-                    {isComplete && <CheckCircle className="w-3 h-3 text-white" />}
+                    {isComplete && <Check className="w-3 h-3 text-white" />}
                 </div>
                 <span className="text-sm text-gray-600">{label}</span>
             </div>
@@ -953,5 +951,8 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
+
 
     
