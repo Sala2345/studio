@@ -78,8 +78,10 @@ export const createOrderFromLogFlow = ai.defineFlow(
         if (!customer) {
             return { success: false, error: `Customer with email ${log.email} not found in Shopify.` };
         }
+        
+        // Extract the numeric ID from the GID (e.g., "gid://shopify/Customer/12345" -> "12345")
         const customerId = customer.id.split('/').pop();
-         if (!customerId) {
+        if (!customerId) {
             return { success: false, error: 'Could not extract numeric ID from Shopify customer GID.' };
         }
 
