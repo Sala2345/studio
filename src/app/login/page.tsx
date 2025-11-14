@@ -70,7 +70,7 @@ export default function LoginPage() {
     try {
       // Configuration for the sign-in link
       const actionCodeSettings = {
-        url: window.location.href, // Redirect back to this same login page
+        url: `${window.location.origin}/log-all-form-works`, // Redirect to the log page after sign in
         handleCodeInApp: true,
       };
 
