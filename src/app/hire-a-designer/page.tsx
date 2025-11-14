@@ -3,17 +3,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { CheckCircle, Loader2, Upload, Check } from 'lucide-react';
+import { Loader2, Upload, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/firebase';
-import { doc, collection, serverTimestamp } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
 import { StylePreference } from '@/components/style-preference';
@@ -21,20 +18,19 @@ import { ColorPreference } from '@/components/color-preference';
 import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
-import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import SimpleFileUploader from '@/components/SimpleFileUploader';
 import { cn } from '@/lib/utils';
 
 
 const designSteps = [
     {
-        text: 'Submit request and place order',
+        text: 'Submit your request details',
     },
     {
-        text: 'Finalize design with our expert',
+        text: 'Review your submitted information',
     },
     {
-        text: "We'll print and ship your order",
+        text: "We'll contact you to finalize",
     },
 ]
 
@@ -67,6 +63,7 @@ interface FormState {
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
     const [availableCities, setAvailableCities] = useState<string[]>([]);
 
@@ -91,12 +88,8 @@ function HireADesignerPageContent() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
-    const [submissionSuccess, setSubmissionSuccess] = useState(false);
-    const [invoiceUrl, setInvoiceUrl] = useState<string | null>(null);
 
     const { toast } = useToast();
-    const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
 
     const handleProductSelect = useCallback((product: ShopifyProduct | null) => {
         setFormState(prev => ({
@@ -148,17 +141,6 @@ function HireADesignerPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
-     useEffect(() => {
-        if (user) {
-            setFormState(prev => ({
-                ...prev,
-                name: prev.name || user.displayName || '',
-                email: prev.email || user.email || '',
-                phoneNumber: prev.phoneNumber || user.phoneNumber || ''
-            }));
-        }
-    }, [user]);
-
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { id, value } = e.target;
         setFormState(prev => ({ ...prev, [id]: value }));
@@ -196,13 +178,6 @@ function HireADesignerPageContent() {
     }, []);
 
     const handleSubmit = async () => {
-        if (!firestore) {
-            toast({ variant: 'destructive', title: 'Database not available.' });
-            return;
-        }
-
-        const fullShippingAddress = [formState.streetAddress, formState.city, formState.province, formState.postalCode].filter(Boolean).join(', ');
-
         const validationErrors = [];
         if (!formState.name.trim()) validationErrors.push('Please enter your name.');
         if (!formState.email.trim()) validationErrors.push('Please enter your email.');
@@ -223,108 +198,27 @@ function HireADesignerPageContent() {
         
         setSubmissionError(null);
         setIsSubmitting(true);
+        
+        const fullShippingAddress = [formState.streetAddress, formState.city, formState.province, formState.postalCode].filter(Boolean).join(', ');
+        const fileUrls = uploadedFiles.map(f => f.url);
 
-        try {
-            const designRequestId = doc(collection(firestore, 'ids')).id;
-            const customerId = user?.uid || `anon_${doc(collection(firestore, 'ids')).id}`;
+        const queryParams = new URLSearchParams({
+            name: formState.name,
+            email: formState.email,
+            phoneNumber: formState.phoneNumber,
+            shippingAddress: fullShippingAddress,
+            product: formState.selectedProduct?.title || 'N/A',
+            variant: formState.selectedVariantTitle || 'N/A',
+            description: formState.designDescription,
+            contactMode: formState.contactMode,
+            style: formState.designStyle,
+            colors: formState.colors,
+            ...fileUrls.reduce((acc, url, index) => ({ ...acc, [`fileUrl${index + 1}`]: url }), {}),
+            ...formState.inspirationLinks.filter(l => l).reduce((acc, link, index) => ({ ...acc, [`inspirationLink${index + 1}`]: link }), {}),
+        });
 
-            const customerRef = doc(firestore, 'customers', customerId);
-            const customerData: any = {
-                id: customerId,
-                email: formState.email,
-                name: formState.name,
-                phoneNumber: formState.phoneNumber,
-                shippingAddress: fullShippingAddress,
-                updatedAt: serverTimestamp(),
-            };
-            if (formState.shopifyCustomerId) {
-                customerData.shopifyCustomerId = formState.shopifyCustomerId;
-            }
-             if (!user) { // Set createdAt only for new anonymous users
-                customerData.createdAt = serverTimestamp();
-            }
-
-            await setDocumentNonBlocking(customerRef, customerData, { merge: true });
-
-            const fileUrls = uploadedFiles.map(f => f.url);
-            
-            const logPayload = {
-                ...formState,
-                id: designRequestId,
-                customerId: customerId,
-                customerName: formState.name,
-                productId: formState.selectedProduct?.id,
-                productTitle: formState.selectedProduct?.title,
-                shippingAddress: fullShippingAddress,
-                fileUrls: fileUrls,
-                status: 'pending', 
-            };
-            
-            delete (logPayload as any).selectedProduct;
-            delete (logPayload as any).name;
-            if(!(logPayload as any).shopifyCustomerId) {
-                delete (logPayload as any).shopifyCustomerId;
-            }
-            delete (logPayload as any).streetAddress;
-            delete (logPayload as any).city;
-            delete (logPayload as any).province;
-            delete (logPayload as any).postalCode;
-
-            const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
-            await setDocumentNonBlocking(designRequestRef, {
-                 ...logPayload,
-                 createdAt: serverTimestamp(),
-                 updatedAt: serverTimestamp(),
-            }, { merge: false });
-
-            setSubmissionSuccess(true);
-            
-            // Logic to create draft order has been removed.
-            // We just update the status to complete now.
-            await updateDocumentNonBlocking(designRequestRef, { status: 'complete' });
-
-        } catch (err) {
-            console.error("Submission processing failed:", err);
-            setSubmissionError((err as Error).message || 'An unexpected error occurred during submission.');
-            setSubmissionSuccess(false); // Revert success state on error
-        } finally {
-            setIsSubmitting(false);
-        }
+        router.push(`/order-requests?${queryParams.toString()}`);
     };
-
-    if (submissionSuccess) {
-        return (
-            <div className="bg-background">
-                <div className="max-w-screen-xl mx-auto py-16 px-5 font-sans">
-                    <Card className="p-6 md:p-12 text-center bg-green-50 border-2 border-green-500">
-                        <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                        <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
-                        <p className="text-lg text-gray-700">Thank you! Your design request has been submitted.</p>
-                        <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
-                        {isSubmitting ? (
-                             <div className="mt-8 text-center">
-                                <p className="text-gray-600 mb-4">We are generating your invoice...</p>
-                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-                             </div>
-                        ) : invoiceUrl ? (
-                             <div className="mt-8">
-                                <p className="text-gray-600 mb-4">Your draft order is ready. Please proceed with the payment.</p>
-                                <Button asChild size="lg">
-                                    <a href={invoiceUrl} target="_blank" rel="noopener noreferrer">
-                                        Pay Now
-                                    </a>
-                                </Button>
-                            </div>
-                        ) : (
-                             <div className="mt-8 text-center">
-                                <p className="text-gray-600 mb-4">Your order has been processed. We will contact you shortly.</p>
-                             </div>
-                        )}
-                    </Card>
-                </div>
-            </div>
-        )
-    }
 
     const SummaryItem = ({ label, value, isComplete }: { label: string, value: string, isComplete: boolean }) => (
         <div className="flex items-center justify-between bg-white rounded-lg p-3">
@@ -519,7 +413,7 @@ function HireADesignerPageContent() {
                             
                             <Button 
                                 onClick={handleSubmit} 
-                                disabled={isSubmitting || isUserLoading} 
+                                disabled={isSubmitting} 
                                 size="lg" 
                                 className="w-full mt-6 text-lg py-7"
                             >
@@ -528,7 +422,7 @@ function HireADesignerPageContent() {
                                 ) : (
                                     <>
                                         <Upload className="mr-3 h-5 w-5" />
-                                        Hire a Designer
+                                        Submit Design Request
                                     </>
                                 )}
                             </Button>
@@ -551,8 +445,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
-
-
-
