@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Loader2, Upload } from 'lucide-react';
+import { Mic, Play, Pause, Trash2, Download, UploadCloud, File as FileIcon, X, CheckCircle, Loader2, Upload, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
