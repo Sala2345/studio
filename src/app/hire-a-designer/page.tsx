@@ -20,6 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import SimpleFileUploader from '@/components/SimpleFileUploader';
 import { cn } from '@/lib/utils';
+import { useFirestore } from '@/firebase';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 
 const designSteps = [
@@ -81,8 +83,10 @@ interface FormState {
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
     const [availableCities, setAvailableCities] = useState<string[]>([]);
+    const firestore = useFirestore();
 
 
     const [formState, setFormState] = useState<FormState>(initialFormState);
@@ -204,65 +208,80 @@ function HireADesignerPageContent() {
         const fileUrls = uploadedFiles.map(f => f.url);
 
         const submissionData = {
+            // Customer Info
             name: formState.name,
             email: formState.email,
             phoneNumber: formState.phoneNumber,
             shippingAddress: fullShippingAddress,
+            shopifyCustomerId: formState.shopifyCustomerId || 'N/A',
+
+            // Product Info
             productId: formState.selectedProduct?.id,
             productTitle: formState.selectedProduct?.title,
-            variantId: formState.selectedVariantId,
-            variantTitle: formState.selectedVariantTitle,
+            selectedVariantId: formState.selectedVariantId,
+            selectedVariantTitle: formState.selectedVariantTitle,
+
+            // Design Info
             designDescription: formState.designDescription,
             contactMode: formState.contactMode,
             designStyle: formState.designStyle,
             colors: formState.colors,
             fileUrls: fileUrls,
             inspirationLinks: formState.inspirationLinks.filter(l => l),
-            shopifyCustomerId: formState.shopifyCustomerId,
+            
+            // Timestamps
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
         };
 
-        // Here you would typically send `submissionData` to your backend or an external service.
-        // For now, we'll just simulate a successful submission.
-        
-        console.log("Form Submitted:", submissionData);
-        
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        setIsSubmitting(false);
+        try {
+            const designRequestsCollection = collection(firestore, 'designRequests');
+            await addDoc(designRequestsCollection, submissionData);
 
-        toast({
-            title: "Submission Successful!",
-            description: "Thank you for your request. Our designers will be in touch shortly.",
-        });
+            toast({
+                title: "Submission Successful!",
+                description: "Thank you for your request. Our designers will be in touch shortly.",
+            });
 
-        // Reset form state to initial values, but keep pre-filled customer data from URL
-        const email = searchParams.get('email') || '';
-        const name = searchParams.get('name') || '';
-        const phone = searchParams.get('phone') || '';
-        const customerId = searchParams.get('customer_id') || '';
-        const address1 = searchParams.get('address1') || '';
-        const city = searchParams.get('city') || '';
-        const provinceCode = searchParams.get('provinceCode') || '';
-        const zip = searchParams.get('zip') || '';
-        const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
+             // Reset form state to initial values, but keep pre-filled customer data from URL
+            const email = searchParams.get('email') || '';
+            const name = searchParams.get('name') || '';
+            const phone = searchParams.get('phone') || '';
+            const customerId = searchParams.get('customer_id') || '';
+            const address1 = searchParams.get('address1') || '';
+            const city = searchParams.get('city') || '';
+            const provinceCode = searchParams.get('provinceCode') || '';
+            const zip = searchParams.get('zip') || '';
+            const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
 
-        setFormState({
-            ...initialFormState,
-            name,
-            email,
-            phoneNumber: phone,
-            streetAddress: address1,
-            city,
-            province: provinceName,
-            postalCode: zip,
-            shopifyCustomerId: customerId,
-        });
-        setUploadedFiles([]);
-        if (provinceName) {
-            setAvailableCities(getCitiesForProvince(provinceName));
-        } else {
-             setAvailableCities([]);
+            setFormState({
+                ...initialFormState,
+                name,
+                email,
+                phoneNumber: phone,
+                streetAddress: address1,
+                city,
+                province: provinceName,
+                postalCode: zip,
+                shopifyCustomerId: customerId,
+            });
+            setUploadedFiles([]);
+            if (provinceName) {
+                setAvailableCities(getCitiesForProvince(provinceName));
+            } else {
+                setAvailableCities([]);
+            }
+
+        } catch (error: any) {
+            console.error("Error submitting form to Firestore:", error);
+            setSubmissionError("There was an error submitting your request. Please try again.");
+            toast({
+                variant: 'destructive',
+                title: 'Submission Failed',
+                description: "There was an error submitting your request. Please try again.",
+            });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -491,5 +510,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    

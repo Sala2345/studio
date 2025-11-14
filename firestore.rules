@@ -3,29 +3,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow public creation of customer and design request documents
-    match /customers/{customerId} {
+    // designRequests collection
+    match /designRequests/{requestId} {
+      // Anyone can create a new design request.
       allow create: if true;
-      // Authenticated users can manage their own data
-      allow get, list, update, delete: if request.auth != null;
-    }
-
-    match /customers/{customerId}/designRequests/{designRequestId} {
-      allow create: if true;
-      // Allow authenticated users to get/update their own requests
+      
+      // Only authenticated users (admins) can read, update, or delete.
       allow get, update, delete: if request.auth != null;
     }
 
-    // Allow any authenticated user to list all design requests via a collection group query.
-    match /{path=**}/designRequests/{designRequestId} {
+    // This rule allows the collection group query for 'designRequests'
+    // It is required for the admin log page to fetch all requests.
+    match /{path=**}/designRequests/{requestId} {
+      // Only authenticated users can list all requests across all customers.
       allow list: if request.auth != null;
     }
 
-    // File metadata rules
-    match /files/{fileId} {
-      allow get, list: if true; // Public read for file metadata
-      allow create: if true;     // Public create for file uploads
-      deny update, delete;       // Disallow modification
+    // Default deny all other collections/documents
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
