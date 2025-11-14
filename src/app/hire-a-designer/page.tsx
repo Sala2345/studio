@@ -192,8 +192,8 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
-    const handleFilesUploaded = useCallback((finalFiles: UploadedFileData[]) => {
-        setUploadedFiles(finalFiles);
+    const handleFilesUploaded = useCallback((newFiles: UploadedFileData[]) => {
+        setUploadedFiles(prev => [...prev, ...newFiles]);
     }, []);
 
     const handleSubmit = async () => {
@@ -571,4 +571,5 @@ export default function HireADesignerPage() {
 }
 
     
+
 
