@@ -76,7 +76,7 @@ function LogAllFormWorksPage() {
           <CardContent>
             <p className="mb-6">Please log in to view the design request logs.</p>
             {/* You can add a login button here */}
-             <Link href="/api/auth/login">
+             <Link href="/login">
                 <Button>Login</Button>
             </Link>
           </CardContent>
