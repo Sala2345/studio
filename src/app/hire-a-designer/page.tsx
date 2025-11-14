@@ -604,8 +604,8 @@ function HireADesignerPageContent() {
 
     return (
         <div className="bg-background font-sans">
-            <div className="max-w-screen-xl mx-auto py-16 px-5">
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-16 items-start">
+            <div className="max-w-[1200px] mx-auto py-16 px-5">
+                <div className="grid grid-cols-1 gap-16 items-start">
                     <main>
                         <h1 className="text-5xl font-bold leading-tight text-gray-800 mb-10 max-w-4xl">
                             Our designers are ready to create your ideal design
