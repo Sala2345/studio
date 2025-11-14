@@ -1,3 +1,4 @@
+
 'use server';
 
 import { ai } from '@/ai/genkit';
@@ -25,12 +26,13 @@ export type DraftOrderOutput = z.infer<typeof DraftOrderOutputSchema>;
 
 export async function createDraftOrderFlow(input: DraftOrderInput): Promise<DraftOrderOutput> {
     
-  // Here, you might need a step to map your internal customerId (Firebase UID)
-  // to a Shopify Customer ID. For now, we'll assume they might be the same or you have a lookup mechanism.
-  // We also need to map our product selection to a specific variant ID.
-
   const { customerId, variantId, designRequestId, fileUrls } = input;
 
+  const numericCustomerId = customerId.split('/').pop();
+  if (!numericCustomerId) {
+    return { success: false, error: 'Invalid Shopify Customer ID format.' };
+  }
+  
   const customAttributes = [
     { key: "Design Request ID", value: designRequestId },
     ...fileUrls.map((url, index) => ({ key: `Design File ${index + 1}`, value: url })),
@@ -38,7 +40,7 @@ export async function createDraftOrderFlow(input: DraftOrderInput): Promise<Draf
   
   try {
     const result = await createShopifyDraftOrder.run({
-      customerId: customerId, // This might need to be looked up
+      customerId: numericCustomerId,
       variantId: variantId,
       customAttributes: customAttributes,
     });
