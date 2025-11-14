@@ -77,7 +77,7 @@ const OptimizedFileUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
         const compressedFile = await compressFile(fileObj.file);
 
         // Step 2: Upload
-        updateFileStatus(fileObj.id, { status: 'uploading', progress: 0 });
+        updateFileStatus(fileObj.id, { status: 'uploading', progress: 0, compressedSize: compressedFile.size });
         const url = await uploadFile(compressedFile, (progress) => {
           updateFileStatus(fileObj.id, { progress });
         });
@@ -87,7 +87,6 @@ const OptimizedFileUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
           status: 'done',
           progress: 100,
           url,
-          compressedSize: compressedFile.size,
         };
         updateFileStatus(fileObj.id, finalUpdates);
 
@@ -103,7 +102,9 @@ const OptimizedFileUploader: React.FC<OptimizedFileUploaderProps> = ({ onFilesUp
     await Promise.all(processPromises);
     setIsProcessing(false);
     
+    // Use a functional update for setFiles to get the latest state
     setFiles(currentFiles => {
+        // After all uploads are done (or failed), notify the parent with the complete list.
         notifyParent(currentFiles);
         return currentFiles;
     })
