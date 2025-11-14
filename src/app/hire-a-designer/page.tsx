@@ -177,7 +177,7 @@ function HireADesignerPageContent() {
                 ...prev,
                 name: prev.name || user.displayName || '',
                 email: prev.email || user.email || '',
-                phoneNumber: prev.phoneNumber || user.phoneNumber
+                phoneNumber: prev.phoneNumber || user.phoneNumber || ''
             }));
         }
     }, [user]);
@@ -466,11 +466,6 @@ function HireADesignerPageContent() {
             toast({ variant: 'destructive', title: 'Database not available.' });
             return;
         }
-        if (!user) {
-            toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to submit a request.' });
-            return;
-        }
-
 
         const fullShippingAddress = [formState.streetAddress, formState.city, formState.province, formState.postalCode].filter(Boolean).join(', ');
 
@@ -496,7 +491,7 @@ function HireADesignerPageContent() {
         setIsSubmitting(true);
 
         const designRequestId = doc(collection(firestore, 'ids')).id;
-        const customerId = user.uid;
+        const customerId = user?.uid || doc(collection(firestore, 'ids')).id;
 
         const customerRef = doc(firestore, 'customers', customerId);
         const customerData: any = {
@@ -956,3 +951,4 @@ export default function HireADesignerPage() {
 
 
     
+
