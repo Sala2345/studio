@@ -1,16 +1,23 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useUser } from '@/firebase';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signOut
+} from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Info } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,6 +26,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   
   const auth = useAuth();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -38,20 +46,19 @@ export default function LoginPage() {
           title: 'Login Successful',
           description: 'You have been securely logged in.',
         });
+        // Redirect is handled by useEffect
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(userCredential.user);
         toast({
           title: 'Sign Up Successful',
-          description: 'Your account has been created and you are now logged in.',
+          description: 'Your account has been created. Please check your email to verify your account.',
         });
       }
-      router.push('/log-all-form-works');
-
     } catch (error: any) {
       console.error(`${authAction} error:`, error);
-      // Provide more specific error messages
       let friendlyMessage = 'An unexpected error occurred. Please try again.';
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         friendlyMessage = 'Invalid email or password. Please try again.';
       } else if (error.code === 'auth/email-already-in-use') {
         friendlyMessage = 'An account with this email already exists. Please sign in.';
@@ -70,6 +77,78 @@ export default function LoginPage() {
     }
   };
 
+  const handleResendVerification = async () => {
+    if (user) {
+      setIsLoading(true);
+      try {
+        await sendEmailVerification(user);
+        toast({
+          title: 'Verification Email Sent',
+          description: 'Please check your inbox (and spam folder).',
+        });
+      } catch (error: any) {
+        console.error("Resend verification error:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Failed to Resend Email',
+          description: error.message || 'Please try again later.',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+        // We need to reload the user to get the latest emailVerified status
+        user.reload().then(() => {
+            if (user.emailVerified) {
+                router.push('/log-all-form-works');
+            }
+        });
+    }
+  }, [user, isUserLoading, router]);
+
+  if (isUserLoading) {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    )
+  }
+
+  if (user && !user.emailVerified) {
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-background p-4">
+            <Card className="w-full max-w-md">
+                <CardHeader>
+                    <CardTitle>Email Verification Required</CardTitle>
+                    <CardDescription>
+                        You must verify your email address before you can access the admin dashboard.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Check Your Email</AlertTitle>
+                        <AlertDescription>
+                            A verification link has been sent to <strong>{user.email}</strong>. Please click the link in the email to continue. After verifying, you may need to refresh this page or log in again.
+                        </AlertDescription>
+                    </Alert>
+                </CardContent>
+                <CardFooter className="flex flex-col gap-4">
+                     <Button onClick={handleResendVerification} className="w-full" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Resend Verification Email"}
+                    </Button>
+                    <Button onClick={() => signOut(auth)} variant="outline" className="w-full">
+                        Log Out
+                    </Button>
+                </CardFooter>
+            </Card>
+        </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
