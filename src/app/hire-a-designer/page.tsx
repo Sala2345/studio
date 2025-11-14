@@ -466,16 +466,18 @@ function HireADesignerPageContent() {
             const customerId = user?.uid || formState.email.replace(/[^a-zA-Z0-9]/g, '');
 
             const customerRef = doc(firestore, 'customers', customerId);
-            const customerData = {
+            const customerData: any = {
                 id: customerId,
                 email: formState.email,
                 name: formState.name,
                 phoneNumber: formState.phoneNumber,
                 shippingAddress: fullShippingAddress,
-                shopifyCustomerId: formState.shopifyCustomerId,
                 updatedAt: serverTimestamp(),
                 createdAt: serverTimestamp(),
             };
+            if (formState.shopifyCustomerId) {
+                customerData.shopifyCustomerId = formState.shopifyCustomerId;
+            }
             await setDoc(customerRef, customerData, { merge: true });
 
             const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
@@ -883,3 +885,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
