@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
 import { doc, collection, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
-import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
 import { StylePreference } from '@/components/style-preference';
@@ -279,28 +278,11 @@ function HireADesignerPageContent() {
             }, { merge: false });
 
             setSubmissionSuccess(true);
+            
+            // Logic to create draft order has been removed.
+            // We just update the status to complete now.
+            await updateDocumentNonBlocking(designRequestRef, { status: 'complete' });
 
-
-            if (formState.selectedVariantId) {
-                const draftOrderResult = await createOrderFromLogFlow({ log: logPayload as any });
-                if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
-                    console.warn("Could not create Shopify draft order:", draftOrderResult.error);
-                    await updateDocumentNonBlocking(designRequestRef, { 
-                        status: 'order-error',
-                        orderError: draftOrderResult.error || 'Unknown Shopify error'
-                    });
-                } else {
-                    setInvoiceUrl(draftOrderResult.invoiceUrl);
-                    await updateDocumentNonBlocking(designRequestRef, { 
-                        status: 'complete',
-                        invoiceUrl: draftOrderResult.invoiceUrl,
-                        shopifyOrderId: draftOrderResult.orderId,
-                    });
-                }
-            } else {
-                console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
-                await updateDocumentNonBlocking(designRequestRef, { status: 'complete' });
-            }
         } catch (err) {
             console.error("Submission processing failed:", err);
             setSubmissionError((err as Error).message || 'An unexpected error occurred during submission.');
@@ -571,5 +553,6 @@ export default function HireADesignerPage() {
 }
 
     
+
 
 

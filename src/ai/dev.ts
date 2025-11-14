@@ -7,4 +7,3 @@ import '@/ai/flows/chat.ts';
 import '@/ai/flows/shopify-tools.ts';
 import '@/ai/flows/generate-design.ts';
 import '@/ai/flows/create-draft-order.ts';
-import '@/ai/flows/create-order-from-log.ts';
