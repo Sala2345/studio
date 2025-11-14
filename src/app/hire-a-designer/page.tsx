@@ -217,95 +217,94 @@ function HireADesignerPageContent() {
         setSubmissionError(null);
         setIsSubmitting(true);
 
-        const designRequestId = doc(collection(firestore, 'ids')).id;
-        const customerId = user?.uid || `anon_${doc(collection(firestore, 'ids')).id}`;
-
-        const customerRef = doc(firestore, 'customers', customerId);
-        const customerData: any = {
-            id: customerId,
-            email: formState.email,
-            name: formState.name,
-            phoneNumber: formState.phoneNumber,
-            shippingAddress: fullShippingAddress,
-            updatedAt: serverTimestamp(),
-        };
-        if (formState.shopifyCustomerId) {
-            customerData.shopifyCustomerId = formState.shopifyCustomerId;
-        }
-         if (!user) { // Set createdAt only for new anonymous users
-            customerData.createdAt = serverTimestamp();
-        }
-        // Create or merge customer data without blocking
-        setDocumentNonBlocking(customerRef, customerData, { merge: true });
-
-        const fileUrls = uploadedFiles.map(f => f.url).filter((url): url is string => !!url);
-        
-        const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
-        const preliminaryFormState = {
-            ...formState,
-            id: designRequestId,
-            customerId: customerId,
-            customerName: formState.name,
-            productId: formState.selectedProduct?.id,
-            productTitle: formState.selectedProduct?.title,
-            shippingAddress: fullShippingAddress,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-            status: 'pending',
-            fileUrls: fileUrls, 
-        };
-        
-        // Clean up data for Firestore
-        delete (preliminaryFormState as any).selectedProduct;
-        delete (preliminaryFormState as any).name;
-        if(!(preliminaryFormState as any).shopifyCustomerId) {
-            delete (preliminaryFormState as any).shopifyCustomerId;
-        }
-        delete (preliminaryFormState as any).streetAddress;
-        delete (preliminaryFormState as any).city;
-        delete (preliminaryFormState as any).province;
-        delete (preliminaryFormState as any).postalCode;
-
-        // Create the design request document without blocking
-        setDocumentNonBlocking(designRequestRef, preliminaryFormState, { merge: false });
-
         // Show success message immediately
         setSubmissionSuccess(true);
-        setIsSubmitting(false); // Allow UI to update to success screen
 
         // --- Start background processing ---
+        try {
+            const designRequestId = doc(collection(firestore, 'ids')).id;
+            const customerId = user?.uid || `anon_${doc(collection(firestore, 'ids')).id}`;
 
-        // Shopify Order
-        if (formState.selectedVariantId) {
-            createOrderFromLogFlow({ log: preliminaryFormState as any })
-                .then(async (draftOrderResult) => {
-                    if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
-                        console.warn("Could not create Shopify draft order:", draftOrderResult.error);
-                        updateDocumentNonBlocking(designRequestRef, { 
-                            status: 'order-error',
-                            orderError: draftOrderResult.error || 'Unknown Shopify error'
-                        });
-                    } else {
-                        setInvoiceUrl(draftOrderResult.invoiceUrl); // Still set for the UI
-                        updateDocumentNonBlocking(designRequestRef, { 
-                            status: 'complete',
-                            invoiceUrl: draftOrderResult.invoiceUrl,
-                            shopifyOrderId: draftOrderResult.orderId,
-                            });
-                    }
-                })
-                .catch(async (err) => {
-                    console.error("Flow execution failed:", err);
-                    updateDocumentNonBlocking(designRequestRef, { 
+            // Create or merge customer data without blocking
+            const customerRef = doc(firestore, 'customers', customerId);
+            const customerData: any = {
+                id: customerId,
+                email: formState.email,
+                name: formState.name,
+                phoneNumber: formState.phoneNumber,
+                shippingAddress: fullShippingAddress,
+                updatedAt: serverTimestamp(),
+            };
+            if (formState.shopifyCustomerId) {
+                customerData.shopifyCustomerId = formState.shopifyCustomerId;
+            }
+            if (!user) { // Set createdAt only for new anonymous users
+                customerData.createdAt = serverTimestamp();
+            }
+            setDocumentNonBlocking(customerRef, customerData, { merge: true });
+            
+            const fileUrls = uploadedFiles.map(f => f.url);
+            
+            // This is the complete log entry payload
+            const logPayload = {
+                ...formState,
+                id: designRequestId,
+                customerId: customerId,
+                customerName: formState.name,
+                productId: formState.selectedProduct?.id,
+                productTitle: formState.selectedProduct?.title,
+                shippingAddress: fullShippingAddress,
+                fileUrls: fileUrls,
+                status: 'pending', // Initial status
+            };
+            
+            // Clean up data for Firestore log
+            delete (logPayload as any).selectedProduct;
+            delete (logPayload as any).name;
+            if(!(logPayload as any).shopifyCustomerId) {
+                delete (logPayload as any).shopifyCustomerId;
+            }
+            delete (logPayload as any).streetAddress;
+            delete (logPayload as any).city;
+            delete (logPayload as any).province;
+            delete (logPayload as any).postalCode;
+
+            // Create the design request document with all data
+            const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
+            await setDocumentNonBlocking(designRequestRef, {
+                 ...logPayload,
+                 createdAt: serverTimestamp(),
+                 updatedAt: serverTimestamp(),
+            }, { merge: false });
+
+
+            // Shopify Order
+            if (formState.selectedVariantId) {
+                const draftOrderResult = await createOrderFromLogFlow({ log: logPayload as any });
+                if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
+                    console.warn("Could not create Shopify draft order:", draftOrderResult.error);
+                    await updateDocumentNonBlocking(designRequestRef, { 
                         status: 'order-error',
-                        orderError: (err as Error).message || 'Flow execution failed'
+                        orderError: draftOrderResult.error || 'Unknown Shopify error'
                     });
-                });
-        } else {
-            console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
-            updateDocumentNonBlocking(designRequestRef, { status: 'complete' }); // Complete if no order needed
+                } else {
+                    setInvoiceUrl(draftOrderResult.invoiceUrl); // Set for the UI
+                    await updateDocumentNonBlocking(designRequestRef, { 
+                        status: 'complete',
+                        invoiceUrl: draftOrderResult.invoiceUrl,
+                        shopifyOrderId: draftOrderResult.orderId,
+                    });
+                }
+            } else {
+                console.warn("Skipping Shopify draft order: Missing Product Variant ID.");
+                await updateDocumentNonBlocking(designRequestRef, { status: 'complete' });
+            }
+        } catch (err) {
+            console.error("Submission processing failed:", err);
+            // Handle error state in the UI if needed
+        } finally {
+            setIsSubmitting(false); // background processing is done
         }
-        // --- End background processing ---
     };
 
     if (submissionSuccess) {
@@ -317,7 +316,12 @@ function HireADesignerPageContent() {
                         <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
                         <p className="text-lg text-gray-700">Thank you! Your design request has been submitted.</p>
                         <p className="text-lg text-gray-700 mt-2">File uploads and order processing are continuing in the background. Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
-                        {invoiceUrl ? (
+                        {isSubmitting ? (
+                             <div className="mt-8 text-center">
+                                <p className="text-gray-600 mb-4">We are generating your invoice...</p>
+                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                             </div>
+                        ) : invoiceUrl ? (
                              <div className="mt-8">
                                 <p className="text-gray-600 mb-4">Your draft order is ready. Please proceed with the payment.</p>
                                 <Button asChild size="lg">
@@ -328,8 +332,7 @@ function HireADesignerPageContent() {
                             </div>
                         ) : (
                              <div className="mt-8 text-center">
-                                <p className="text-gray-600 mb-4">We are generating your invoice...</p>
-                                <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
+                                <p className="text-gray-600 mb-4">Your order has been processed without an invoice.</p>
                              </div>
                         )}
                     </Card>
