@@ -199,9 +199,7 @@
     }
   },
   "auth": {
-    "providers": [
-      "password"
-    ]
+    "providers": []
   },
   "firestore": {
     "structure": [
@@ -258,6 +256,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to securely manage design requests, customer data, and uploaded files. It emphasizes authorization independence and facilitates secure list operations. The design leverages path-based ownership for customer-owned data and denormalization to avoid hierarchical authorization dependencies.\n\n*   `/customers/{customerId}`: Stores customer information, synced from Shopify. Customer ID is used as the document ID.\n*   `/customers/{customerId}/designRequests/{designRequestId}`: Stores design requests submitted by customers. This subcollection uses path-based ownership, ensuring that only the customer can access their own design requests.\n*   `/files/{fileId}`: Stores metadata about uploaded files. Each file document includes the `designRequestId` to associate it with a specific design request.  Authorization is managed through rules that check the associated customer ID.\n\n**Authorization Independence:** The `designRequests` subcollection denormalizes the `customerId` from the parent `customer` document. This enables direct authorization checks within the `designRequests` collection without needing to perform `get()` operations to retrieve parent data.  Files also have the designRequestId so that rules can easily validate its authenticity.\n\n**QAPs Support:**\n\n*   Secure List Operations: The path-based ownership (`/customers/{customerId}/designRequests/{designRequestId}`) ensures that listing design requests under a customer ID is secure. Rules can efficiently filter by `request.auth.uid == customerId`.\n*   The `/files` collection does not store confidential information, so it can be listed safely."
+    "reasoning": "The Firestore data structure is designed to securely manage design requests, customer data, and uploaded files. It emphasizes authorization independence and facilitates secure list operations. The design leverages path-based ownership for customer-owned data and denormalization to avoid hierarchical authorization dependencies.\n\n*   `/customers/{customerId}`: Stores customer information, synced from Shopify. Customer ID is used as the document ID.\n*   `/customers/{customerId}/designRequests/{designRequestId}`: Stores design requests submitted by customers. This subcollection uses path-based ownership, ensuring that only the customer can access their own design requests.\n*   `/files/{fileId}`: Stores metadata about uploaded files. Each file document includes the `designRequestId` to associate it with a specific design request.  Authorization is managed through rules that check the associated customer ID.\n\n**QAPs Support:**\n\n*   Secure List Operations: The path-based ownership (`/customers/{customerId}/designRequests/{designRequestId}`) ensures that listing design requests under a customer ID is secure. Rules can efficiently filter by `request.auth.uid == customerId`.\n*   The `/files` collection does not store confidential information, so it can be listed safely."
   }
 }

@@ -1,13 +1,13 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
@@ -19,16 +19,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   
   const auth = useAuth();
-  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
-    // If user is already logged in, redirect them away from the login page
-    if (!isUserLoading && user) {
-      router.push('/log-all-form-works');
-    }
-  }, [user, isUserLoading, router]);
 
   const handleAuth = async (authAction: 'signIn' | 'signUp') => {
     if (!email || !password) {
@@ -78,14 +70,6 @@ export default function LoginPage() {
     }
   };
 
-  if (isUserLoading || user) {
-    // Show a loading screen or nothing while redirecting
-    return (
-        <div className="flex items-center justify-center min-h-screen bg-background">
-            <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-    );
-  }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">

@@ -3,20 +3,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // designRequests collection
+    // Allow public creation of design requests
     match /designRequests/{requestId} {
-      // Anyone can create a new design request.
       allow create: if true;
       
-      // Only authenticated users (admins) can read, update, or delete.
-      allow get, update, delete: if request.auth != null;
+      // Allow public read access to design requests
+      allow get: if true;
+      
+      // Deny updates and deletes from anyone for now
+      allow update, delete: if false;
     }
 
-    // This rule allows the collection group query for 'designRequests'
-    // It is required for the admin log page to fetch all requests.
+    // Allow public listing of all design requests for the log page
     match /{path=**}/designRequests/{requestId} {
-      // Only authenticated users can list all requests across all customers.
-      allow list: if request.auth != null;
+      allow list: if true;
     }
 
     // Default deny all other collections/documents

@@ -3,13 +3,12 @@
 
 import React, { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
-import { Loader2, ExternalLink, LogIn } from 'lucide-react';
+import { Loader2, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 
 // Define the structure of a design request document
@@ -27,7 +26,6 @@ interface DesignRequest {
 }
 
 function LogAllFormWorksPage() {
-  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
 
@@ -37,35 +35,13 @@ function LogAllFormWorksPage() {
     return query(collection(firestore, 'designRequests'), orderBy('createdAt', 'desc'));
   }, [firestore]);
 
-  const { data: designRequests, isLoading: isDataLoading, error } = useCollection<DesignRequest>(designRequestsQuery);
-
-  const isLoading = isUserLoading || isDataLoading;
+  const { data: designRequests, isLoading, error } = useCollection<DesignRequest>(designRequestsQuery);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
-    );
-  }
-
-  // If user is not authenticated, show an access denied message
-  if (!user) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-            <Card className="w-full max-w-md text-center">
-                <CardHeader>
-                    <CardTitle>Access Denied</CardTitle>
-                    <CardDescription>You must be logged in to view this page.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={() => router.push('/login')}>
-                        <LogIn className="mr-2 h-4 w-4" />
-                        Go to Login
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
     );
   }
   
@@ -149,4 +125,3 @@ function LogAllFormWorksPage() {
 }
 
 export default LogAllFormWorksPage;
-
