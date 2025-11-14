@@ -41,6 +41,24 @@ interface UploadedFileData {
   key: string;
 }
 
+const initialFormState = {
+    name: '',
+    email: '',
+    phoneNumber: '',
+    streetAddress: '',
+    city: '',
+    province: '',
+    postalCode: '',
+    selectedProduct: null,
+    selectedVariantId: null,
+    selectedVariantTitle: null,
+    designDescription: '',
+    contactMode: 'email',
+    designStyle: '',
+    colors: '',
+    inspirationLinks: [''],
+    shopifyCustomerId: '',
+};
 
 interface FormState {
     name: string;
@@ -63,28 +81,11 @@ interface FormState {
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
-    const router = useRouter();
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
     const [availableCities, setAvailableCities] = useState<string[]>([]);
 
 
-    const [formState, setFormState] = useState<FormState>({
-        name: '',
-        email: '',
-        phoneNumber: '',
-        streetAddress: '',
-        city: '',
-        province: '',
-        postalCode: '',
-        selectedProduct: null,
-        selectedVariantId: null,
-        selectedVariantTitle: null,
-        designDescription: '',
-        contactMode: 'email',
-        designStyle: '',
-        colors: '',
-        inspirationLinks: [''],
-    });
+    const [formState, setFormState] = useState<FormState>(initialFormState);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -202,22 +203,67 @@ function HireADesignerPageContent() {
         const fullShippingAddress = [formState.streetAddress, formState.city, formState.province, formState.postalCode].filter(Boolean).join(', ');
         const fileUrls = uploadedFiles.map(f => f.url);
 
-        const queryParams = new URLSearchParams({
+        const submissionData = {
             name: formState.name,
             email: formState.email,
             phoneNumber: formState.phoneNumber,
             shippingAddress: fullShippingAddress,
-            product: formState.selectedProduct?.title || 'N/A',
-            variant: formState.selectedVariantTitle || 'N/A',
-            description: formState.designDescription,
+            productId: formState.selectedProduct?.id,
+            productTitle: formState.selectedProduct?.title,
+            variantId: formState.selectedVariantId,
+            variantTitle: formState.selectedVariantTitle,
+            designDescription: formState.designDescription,
             contactMode: formState.contactMode,
-            style: formState.designStyle,
+            designStyle: formState.designStyle,
             colors: formState.colors,
-            ...fileUrls.reduce((acc, url, index) => ({ ...acc, [`fileUrl${index + 1}`]: url }), {}),
-            ...formState.inspirationLinks.filter(l => l).reduce((acc, link, index) => ({ ...acc, [`inspirationLink${index + 1}`]: link }), {}),
+            fileUrls: fileUrls,
+            inspirationLinks: formState.inspirationLinks.filter(l => l),
+            shopifyCustomerId: formState.shopifyCustomerId,
+        };
+
+        // Here you would typically send `submissionData` to your backend or an external service.
+        // For now, we'll just simulate a successful submission.
+        
+        console.log("Form Submitted:", submissionData);
+        
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        setIsSubmitting(false);
+
+        toast({
+            title: "Submission Successful!",
+            description: "Thank you for your request. Our designers will be in touch shortly.",
         });
 
-        router.push(`/order-requests?${queryParams.toString()}`);
+        // Reset form state to initial values, but keep pre-filled customer data from URL
+        const email = searchParams.get('email') || '';
+        const name = searchParams.get('name') || '';
+        const phone = searchParams.get('phone') || '';
+        const customerId = searchParams.get('customer_id') || '';
+        const address1 = searchParams.get('address1') || '';
+        const city = searchParams.get('city') || '';
+        const provinceCode = searchParams.get('provinceCode') || '';
+        const zip = searchParams.get('zip') || '';
+        const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
+
+        setFormState({
+            ...initialFormState,
+            name,
+            email,
+            phoneNumber: phone,
+            streetAddress: address1,
+            city,
+            province: provinceName,
+            postalCode: zip,
+            shopifyCustomerId: customerId,
+        });
+        setUploadedFiles([]);
+        if (provinceName) {
+            setAvailableCities(getCitiesForProvince(provinceName));
+        } else {
+             setAvailableCities([]);
+        }
     };
 
     const SummaryItem = ({ label, value, isComplete }: { label: string, value: string, isComplete: boolean }) => (
@@ -445,3 +491,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
