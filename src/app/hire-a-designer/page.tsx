@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { CheckCircle, Loader2, Upload, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
-import { doc, collection, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, collection, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { createOrderFromLogFlow } from '@/ai/flows/create-order-from-log';
 import { ProductSelector } from '@/components/product-selector';
@@ -217,15 +217,10 @@ function HireADesignerPageContent() {
         setSubmissionError(null);
         setIsSubmitting(true);
 
-        // Show success message immediately
-        setSubmissionSuccess(true);
-
-        // --- Start background processing ---
         try {
             const designRequestId = doc(collection(firestore, 'ids')).id;
             const customerId = user?.uid || `anon_${doc(collection(firestore, 'ids')).id}`;
 
-            // Create or merge customer data without blocking
             const customerRef = doc(firestore, 'customers', customerId);
             const customerData: any = {
                 id: customerId,
@@ -238,14 +233,14 @@ function HireADesignerPageContent() {
             if (formState.shopifyCustomerId) {
                 customerData.shopifyCustomerId = formState.shopifyCustomerId;
             }
-            if (!user) { // Set createdAt only for new anonymous users
+             if (!user) { // Set createdAt only for new anonymous users
                 customerData.createdAt = serverTimestamp();
             }
-            setDocumentNonBlocking(customerRef, customerData, { merge: true });
-            
+
+            await setDocumentNonBlocking(customerRef, customerData, { merge: true });
+
             const fileUrls = uploadedFiles.map(f => f.url);
             
-            // This is the complete log entry payload
             const logPayload = {
                 ...formState,
                 id: designRequestId,
@@ -255,10 +250,9 @@ function HireADesignerPageContent() {
                 productTitle: formState.selectedProduct?.title,
                 shippingAddress: fullShippingAddress,
                 fileUrls: fileUrls,
-                status: 'pending', // Initial status
+                status: 'pending', 
             };
             
-            // Clean up data for Firestore log
             delete (logPayload as any).selectedProduct;
             delete (logPayload as any).name;
             if(!(logPayload as any).shopifyCustomerId) {
@@ -269,7 +263,6 @@ function HireADesignerPageContent() {
             delete (logPayload as any).province;
             delete (logPayload as any).postalCode;
 
-            // Create the design request document with all data
             const designRequestRef = doc(firestore, 'customers', customerId, 'designRequests', designRequestId);
             await setDocumentNonBlocking(designRequestRef, {
                  ...logPayload,
@@ -277,8 +270,9 @@ function HireADesignerPageContent() {
                  updatedAt: serverTimestamp(),
             }, { merge: false });
 
+            setSubmissionSuccess(true);
 
-            // Shopify Order
+
             if (formState.selectedVariantId) {
                 const draftOrderResult = await createOrderFromLogFlow({ log: logPayload as any });
                 if (!draftOrderResult.success || !draftOrderResult.invoiceUrl) {
@@ -288,7 +282,7 @@ function HireADesignerPageContent() {
                         orderError: draftOrderResult.error || 'Unknown Shopify error'
                     });
                 } else {
-                    setInvoiceUrl(draftOrderResult.invoiceUrl); // Set for the UI
+                    setInvoiceUrl(draftOrderResult.invoiceUrl);
                     await updateDocumentNonBlocking(designRequestRef, { 
                         status: 'complete',
                         invoiceUrl: draftOrderResult.invoiceUrl,
@@ -301,9 +295,10 @@ function HireADesignerPageContent() {
             }
         } catch (err) {
             console.error("Submission processing failed:", err);
-            // Handle error state in the UI if needed
+            setSubmissionError((err as Error).message || 'An unexpected error occurred during submission.');
+            setSubmissionSuccess(false); // Revert success state on error
         } finally {
-            setIsSubmitting(false); // background processing is done
+            setIsSubmitting(false);
         }
     };
 
@@ -315,7 +310,7 @@ function HireADesignerPageContent() {
                         <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
                         <h2 className="text-3xl font-bold text-green-800 mb-4">Request Submitted Successfully!</h2>
                         <p className="text-lg text-gray-700">Thank you! Your design request has been submitted.</p>
-                        <p className="text-lg text-gray-700 mt-2">File uploads and order processing are continuing in the background. Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
+                        <p className="text-lg text-gray-700 mt-2">Our team will review your request and contact you at <strong>{formState.email}</strong>.</p>
                         {isSubmitting ? (
                              <div className="mt-8 text-center">
                                 <p className="text-gray-600 mb-4">We are generating your invoice...</p>
@@ -332,7 +327,7 @@ function HireADesignerPageContent() {
                             </div>
                         ) : (
                              <div className="mt-8 text-center">
-                                <p className="text-gray-600 mb-4">Your order has been processed without an invoice.</p>
+                                <p className="text-gray-600 mb-4">Your order has been processed. We will contact you shortly.</p>
                              </div>
                         )}
                     </Card>
