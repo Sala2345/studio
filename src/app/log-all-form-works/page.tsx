@@ -1,9 +1,9 @@
 
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Loader2, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,14 @@ interface DesignRequest {
 function LogAllFormWorksPage() {
   const router = useRouter();
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/login');
+    }
+  }, [isUserLoading, user, router]);
 
   // Memoize the Firestore query to prevent re-renders
   const designRequestsQuery = useMemoFirebase(() => {
@@ -37,12 +45,17 @@ function LogAllFormWorksPage() {
 
   const { data: designRequests, isLoading, error } = useCollection<DesignRequest>(designRequestsQuery);
 
-  if (isLoading) {
+  if (isUserLoading || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (!user) {
+    // This will be shown briefly before the redirect kicks in
+    return null;
   }
   
   if (error) {
@@ -125,5 +138,4 @@ function LogAllFormWorksPage() {
 }
 
 export default LogAllFormWorksPage;
-
     
