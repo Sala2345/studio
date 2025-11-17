@@ -3,13 +3,16 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { collection, query, orderBy } from 'firebase/firestore';
-import { Loader2, ExternalLink } from 'lucide-react';
+import { Loader2, ExternalLink, LogOut } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
 // Define the structure of a design request document
 interface DesignRequest {
@@ -28,7 +31,9 @@ interface DesignRequest {
 function LogAllFormWorksPage() {
   const router = useRouter();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
 
   // Redirect if not logged in
   useEffect(() => {
@@ -44,6 +49,23 @@ function LogAllFormWorksPage() {
   }, [firestore]);
 
   const { data: designRequests, isLoading, error } = useCollection<DesignRequest>(designRequestsQuery);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      toast({
+        title: 'Logged Out',
+        description: 'You have been successfully logged out.',
+      });
+      router.push('/login');
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Logout Failed',
+        description: 'An error occurred while logging out. Please try again.',
+      });
+    }
+  };
 
   if (isUserLoading || isLoading) {
     return (
@@ -65,9 +87,15 @@ function LogAllFormWorksPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <Card className="w-full max-w-7xl mx-auto">
-        <CardHeader>
-          <CardTitle>Design Request Logs</CardTitle>
-          <CardDescription>A real-time log of all submitted design requests.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Design Request Logs</CardTitle>
+            <CardDescription>A real-time log of all submitted design requests.</CardDescription>
+          </div>
+          <Button onClick={handleLogout} variant="outline">
+            <LogOut className="mr-2 h-4 w-4" />
+            Log Out
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="border rounded-md">
