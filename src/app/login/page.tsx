@@ -104,7 +104,7 @@ export default function LoginPage() {
         // We need to reload the user to get the latest emailVerified status
         user.reload().then(() => {
             if (user.emailVerified) {
-                router.push('/design-request');
+                router.push('/');
             }
         });
     }

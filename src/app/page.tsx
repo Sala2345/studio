@@ -28,12 +28,6 @@ export default function Home() {
                         Hire a Designer
                     </Button>
                 </Link>
-                <Link href="/design-request" passHref>
-                  <Button variant="outline">
-                    <PencilRuler className="mr-2 h-4 w-4" />
-                    Request Log
-                  </Button>
-                </Link>
             </div>
         </CardHeader>
         <ChatInterface />
