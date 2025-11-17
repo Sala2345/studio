@@ -2,13 +2,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, Check } from 'lucide-react';
+import { Loader2, Download, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
@@ -17,10 +17,9 @@ import { ColorPreference } from '@/components/color-preference';
 import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
-import SimpleFileUploader from '@/components/SimpleFileUploader';
 import { cn } from '@/lib/utils';
-import { useFirestore } from '@/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { saveAs } from 'file-saver';
 
 
 const designSteps = [
@@ -34,13 +33,6 @@ const designSteps = [
         text: "We'll contact you to finalize",
     },
 ]
-
-interface UploadedFileData {
-  name: string;
-  url: string;
-  size: number;
-  key: string;
-}
 
 const initialFormState = {
     name: '',
@@ -82,10 +74,7 @@ interface FormState {
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
-    const router = useRouter();
-    const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
     const [availableCities, setAvailableCities] = useState<string[]>([]);
-    const firestore = useFirestore();
 
 
     const [formState, setFormState] = useState<FormState>(initialFormState);
@@ -177,9 +166,47 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
-    const handleFilesUploaded = useCallback((files: UploadedFileData[]) => {
-        setUploadedFiles(files);
-    }, []);
+    const generateDoc = async () => {
+        const {
+            name, email, phoneNumber, streetAddress, city, province, postalCode,
+            selectedProduct, selectedVariantTitle, designDescription, contactMode,
+            designStyle, colors, inspirationLinks
+        } = formState;
+
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: [
+                    new Paragraph({ text: `Design Request for: ${name}`, heading: HeadingLevel.HEADING_1 }),
+                    new Paragraph({ text: `Submitted: ${new Date().toLocaleString()}`, heading: HeadingLevel.HEADING_3, spacing: { after: 200 } }),
+
+                    new Paragraph({ text: "Contact Information", heading: HeadingLevel.HEADING_2 }),
+                    new Paragraph({ children: [new TextRun({ text: "Name: ", bold: true }), new TextRun(name)] }),
+                    new Paragraph({ children: [new TextRun({ text: "Email: ", bold: true }), new TextRun(email)] }),
+                    new Paragraph({ children: [new TextRun({ text: "Phone: ", bold: true }), new TextRun(phoneNumber)] }),
+                    new Paragraph({ children: [new TextRun({ text: "Address: ", bold: true }), new TextRun(`${streetAddress}, ${city}, ${province}, ${postalCode}`)] }),
+                    new Paragraph({ children: [new TextRun({ text: "Preferred Contact: ", bold: true }), new TextRun(contactMode)] }),
+                    
+                    new Paragraph({ text: "Design Details", heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
+                    new Paragraph({ children: [new TextRun({ text: "Product: ", bold: true }), new TextRun(selectedProduct?.title || 'N/A')] }),
+                    new Paragraph({ children: [new TextRun({ text: "Variant: ", bold: true }), new TextRun(selectedVariantTitle || 'N/A')] }),
+                    new Paragraph({ children: [new TextRun({ text: "Design Style: ", bold: true }), new TextRun(designStyle || 'N/A')] }),
+                    new Paragraph({ children: [new TextRun({ text: "Colors: ", bold: true }), new TextRun(colors || 'N/A')] }),
+                    
+                    new Paragraph({ text: "Design Description", heading: HeadingLevel.HEADING_3, spacing: { before: 200 } }),
+                    new Paragraph(designDescription),
+
+                    new Paragraph({ text: "Inspiration Links", heading: HeadingLevel.HEADING_3, spacing: { before: 200 } }),
+                    ...inspirationLinks.filter(link => link).map(link => new Paragraph({
+                        children: [new TextRun({ text: link, style: "Hyperlink" })],
+                    })),
+                ],
+            }],
+        });
+
+        const blob = await Packer.toBlob(doc);
+        saveAs(blob, `Design-Request-${name.replace(/ /g, '-')}.docx`);
+    };
 
     const handleSubmit = async () => {
         const validationErrors = [];
@@ -203,43 +230,12 @@ function HireADesignerPageContent() {
         setSubmissionError(null);
         setIsSubmitting(true);
         
-        const fullShippingAddress = [formState.streetAddress, formState.city, formState.province, formState.postalCode].filter(Boolean).join(', ');
-        const fileUrls = uploadedFiles.map(f => f.url);
-
-        const submissionData = {
-            // Customer Info
-            name: formState.name,
-            email: formState.email,
-            phoneNumber: formState.phoneNumber,
-            shippingAddress: fullShippingAddress,
-            shopifyCustomerId: formState.shopifyCustomerId || 'N/A',
-
-            // Product Info
-            productId: formState.selectedProduct?.id,
-            productTitle: formState.selectedProduct?.title,
-            selectedVariantId: formState.selectedVariantId,
-            selectedVariantTitle: formState.selectedVariantTitle,
-
-            // Design Info
-            designDescription: formState.designDescription,
-            contactMode: formState.contactMode,
-            designStyle: formState.designStyle,
-            colors: formState.colors,
-            fileUrls: fileUrls,
-            inspirationLinks: formState.inspirationLinks.filter(l => l),
-            
-            // Timestamps
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        };
-
         try {
-            const designRequestsCollection = collection(firestore, 'designRequests');
-            await addDoc(designRequestsCollection, submissionData);
+            await generateDoc();
 
             toast({
-                title: "Submission Successful!",
-                description: "Thank you for your request. Our designers will be in touch shortly.",
+                title: "Document Generated!",
+                description: "Your design request has been downloaded as a Word document.",
             });
 
              // Reset form state to initial values, but keep pre-filled customer data from URL
@@ -264,7 +260,7 @@ function HireADesignerPageContent() {
                 postalCode: zip,
                 shopifyCustomerId: customerId,
             });
-            setUploadedFiles([]);
+            
             if (provinceName) {
                 setAvailableCities(getCitiesForProvince(provinceName));
             } else {
@@ -272,12 +268,12 @@ function HireADesignerPageContent() {
             }
 
         } catch (error: any) {
-            console.error("Error submitting form to Firestore:", error);
-            setSubmissionError("There was an error submitting your request. Please try again.");
+            console.error("Error generating document:", error);
+            setSubmissionError("There was an error generating the document. Please try again.");
             toast({
                 variant: 'destructive',
-                title: 'Submission Failed',
-                description: "There was an error submitting your request. Please try again.",
+                title: 'Generation Failed',
+                description: "There was an error generating the document. Please try again.",
             });
         } finally {
             setIsSubmitting(false);
@@ -409,18 +405,6 @@ function HireADesignerPageContent() {
                         <div className="my-10">
                             <ColorPreference onChange={handleColorChange} />
                         </div>
-                        
-                        <div className="mt-10">
-                            <Label className="text-lg font-bold text-gray-800 mb-2 block">
-                                What files would you like included? <span className="text-gray-500 font-normal">(optional)</span>
-                            </Label>
-                            <p className="text-sm text-gray-600 mb-4">
-                                Add logos, voice notes, and images, as well as any references you'd like us to look at.
-                            </p>
-                            <div className="max-w-3xl">
-                               <SimpleFileUploader onFilesUploaded={handleFilesUploaded} uploadedFiles={uploadedFiles} />
-                            </div>
-                        </div>
 
                          <div className="my-10">
                             <InspirationLinks
@@ -463,11 +447,6 @@ function HireADesignerPageContent() {
                                         isComplete={!!formState.colors}
                                     />
                                     <SummaryItem
-                                        label="Files:"
-                                        value={uploadedFiles.length > 0 ? `${uploadedFiles.length} file(s)` : 'None'}
-                                        isComplete={uploadedFiles.length > 0}
-                                    />
-                                    <SummaryItem
                                         label="Inspiration Links:"
                                         value={formState.inspirationLinks.filter(l => l).length > 0 ? `${formState.inspirationLinks.filter(l => l).length} link(s)` : 'None'}
                                         isComplete={formState.inspirationLinks.filter(l => l).length > 0}
@@ -485,8 +464,8 @@ function HireADesignerPageContent() {
                                     <Loader2 className="h-6 w-6 animate-spin" />
                                 ) : (
                                     <>
-                                        <Upload className="mr-3 h-5 w-5" />
-                                        Submit Design Request
+                                        <Download className="mr-3 h-5 w-5" />
+                                        Submit and Download Request
                                     </>
                                 )}
                             </Button>
@@ -509,5 +488,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    

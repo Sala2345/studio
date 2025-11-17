@@ -1,3 +1,18 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "claude": {
+      "command": "claude",
+      "args": [
+        "mcp"
+      ]
+    },
+    "Claude Anthropic": {
+      "command": "",
+      "args": []
+    },
+    "Claude": {
+      "command": "",
+      "args": []
+    }
+  }
 }
