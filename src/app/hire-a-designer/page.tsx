@@ -70,6 +70,21 @@ interface FormState {
     shopifyCustomerId?: string;
 }
 
+// 1. Storage utility
+const saveDesignRequest = (requestData: any) => {
+    if (typeof window === 'undefined') return;
+    const existingRequests = JSON.parse(localStorage.getItem('designRequests') || '[]');
+    const newRequest = {
+        id: Date.now(),
+        timestamp: new Date().toISOString(),
+        ...requestData
+    };
+    existingRequests.push(newRequest);
+    localStorage.setItem('designRequests', JSON.stringify(existingRequests));
+    return newRequest;
+};
+
+
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -166,198 +181,97 @@ function HireADesignerPageContent() {
     }, []);
 
 
+    // 2. Updated handleSubmit function
     const handleSubmit = async () => {
-    const validationErrors = [];
-    if (!formState.name.trim()) validationErrors.push('Please enter your name.');
-    if (!formState.email.trim()) validationErrors.push('Please enter your email.');
-    if (!formState.phoneNumber.trim()) validationErrors.push('Please enter your phone number.');
-    if (!formState.streetAddress.trim()) validationErrors.push('Please enter your street address.');
-    if (!formState.city.trim()) validationErrors.push('Please select a city.');
-    if (!formState.province.trim()) validationErrors.push('Please select a province.');
-    if (!formState.postalCode.trim()) validationErrors.push('Please enter your postal code.');
-    if (!formState.selectedProduct) validationErrors.push('Please select a product.');
-    if (!formState.designDescription.trim()) validationErrors.push('Please provide a design description.');
-    
-    if (validationErrors.length > 0) {
-        const errorString = validationErrors.join(' ');
-        setSubmissionError(errorString);
-        toast({ variant: 'destructive', title: 'Missing Information', description: errorString });
-        return;
-    }
-    
-    setSubmissionError(null);
-    setIsSubmitting(true);
-    
-    try {
-        // Create HTML content with all the form data
-        const htmlContent = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Design Request - ${formState.name}</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
-        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        h1 { color: #ED1C24; border-bottom: 3px solid #ED1C24; padding-bottom: 10px; }
-        h2 { color: #333; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
-        .info-group { margin: 15px 0; }
-        .label { font-weight: bold; color: #666; display: inline-block; width: 200px; }
-        .value { color: #333; }
-        .timestamp { text-align: right; color: #999; font-size: 14px; margin-top: 30px; }
-        .files-list { list-style: none; padding: 0; }
-        .files-list li { padding: 8px; background: #f9f9f9; margin: 5px 0; border-radius: 4px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Design Request</h1>
+        const validationErrors = [];
+        if (!formState.name.trim()) validationErrors.push('Please enter your name.');
+        if (!formState.email.trim()) validationErrors.push('Please enter your email.');
+        if (!formState.phoneNumber.trim()) validationErrors.push('Please enter your phone number.');
+        if (!formState.streetAddress.trim()) validationErrors.push('Please enter your street address.');
+        if (!formState.city.trim()) validationErrors.push('Please select a city.');
+        if (!formState.province.trim()) validationErrors.push('Please select a province.');
+        if (!formState.postalCode.trim()) validationErrors.push('Please enter your postal code.');
+        if (!formState.selectedProduct) validationErrors.push('Please select a product.');
+        if (!formState.designDescription.trim()) validationErrors.push('Please provide a design description.');
         
-        <h2>Customer Information</h2>
-        <div class="info-group">
-            <span class="label">Name:</span>
-            <span class="value">${formState.name}</span>
-        </div>
-        <div class="info-group">
-            <span class="label">Email:</span>
-            <span class="value">${formState.email}</span>
-        </div>
-        <div class="info-group">
-            <span class="label">Phone Number:</span>
-            <span class="value">${formState.phoneNumber}</span>
-        </div>
-        <div class="info-group">
-            <span class="label">Street Address:</span>
-            <span class="value">${formState.streetAddress}</span>
-        </div>
-        <div class="info-group">
-            <span class="label">City:</span>
-            <span class="value">${formState.city}</span>
-        </div>
-        <div class="info-group">
-            <span class="label">Province:</span>
-            <span class="value">${formState.province}</span>
-        </div>
-        <div class="info-group">
-            <span class="label">Postal Code:</span>
-            <span class="value">${formState.postalCode}</span>
-        </div>
-        ${formState.shopifyCustomerId ? `
-        <div class="info-group">
-            <span class="label">Customer ID:</span>
-            <span class="value">${formState.shopifyCustomerId}</span>
-        </div>
-        ` : ''}
-
-        <h2>Product Selection</h2>
-        <div class="info-group">
-            <span class="label">Product:</span>
-            <span class="value">${formState.selectedProduct?.title || 'N/A'}</span>
-        </div>
-        ${formState.selectedVariantTitle ? `
-        <div class="info-group">
-            <span class="label">Variant:</span>
-            <span class="value">${formState.selectedVariantTitle}</span>
-        </div>
-        ` : ''}
-
-        <h2>Design Details</h2>
-        <div class="info-group">
-            <span class="label">Description:</span>
-            <div class="value" style="margin-top: 10px; white-space: pre-wrap;">${formState.designDescription}</div>
-        </div>
-        ${formState.contactMode ? `
-        <div class="info-group">
-            <span class="label">Contact Method:</span>
-            <span class="value">${formState.contactMode}</span>
-        </div>
-        ` : ''}
-        ${formState.designStyle ? `
-        <div class="info-group">
-            <span class="label">Design Style:</span>
-            <span class="value">${formState.designStyle}</span>
-        </div>
-        ` : ''}
-        
-        ${formState.colors ? `
-        <div class="info-group">
-            <span class="label">Colors:</span>
-            <span class="value">${formState.colors}</span>
-        </div>
-        ` : ''}
-
-
-        ${formState.inspirationLinks && formState.inspirationLinks.filter(l => l).length > 0 ? `
-        <h2>Inspiration Links</h2>
-        <ul class="files-list">
-            ${formState.inspirationLinks.filter(l => l).map(link => `
-                <li><a href="${link}" target="_blank">${link}</a></li>
-            `).join('')}
-        </ul>
-        ` : ''}
-
-        <div class="timestamp">
-            Submitted on: ${new Date().toLocaleString()}
-        </div>
-    </div>
-</body>
-</html>
-        `;
-
-        // Open a new window and write the HTML content
-        const newWindow = window.open('', '_blank');
-        if (newWindow) {
-            newWindow.document.write(htmlContent);
-            newWindow.document.close();
-            newWindow.document.title = `Design Request - ${formState.name}`;
-        } else {
-            alert('Please allow pop-ups to view the design request page.');
+        if (validationErrors.length > 0) {
+            const errorString = validationErrors.join(' ');
+            setSubmissionError(errorString);
+            toast({ variant: 'destructive', title: 'Missing Information', description: errorString });
+            return;
         }
-
-        toast({
-            title: 'Submission Successful!',
-            description: "Design request page opened in a new tab.",
-        });
-
-        // Reset form state
-        const email = searchParams.get('email') || '';
-        const name = searchParams.get('name') || '';
-        const phone = searchParams.get('phone') || '';
-        const customerId = searchParams.get('customer_id') || '';
-        const address1 = searchParams.get('address1') || '';
-        const city = searchParams.get('city') || '';
-        const provinceCode = searchParams.get('provinceCode') || '';
-        const zip = searchParams.get('zip') || '';
-        const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
         
-        setFormState({
-            ...initialFormState,
-            email: email,
-            name: name,
-            phoneNumber: phone,
-            shopifyCustomerId: customerId,
-            streetAddress: address1,
-            city: city,
-            province: provinceName,
-            postalCode: zip,
-        });
-        if (provinceName) {
-            setAvailableCities(getCitiesForProvince(provinceName));
-        }
+        setSubmissionError(null);
+        setIsSubmitting(true);
+        
+        try {
+            // Save the design request data
+            const requestData = {
+                name: formState.name,
+                email: formState.email,
+                phoneNumber: formState.phoneNumber,
+                streetAddress: formState.streetAddress,
+                city: formState.city,
+                province: formState.province,
+                postalCode: formState.postalCode,
+                shopifyCustomerId: formState.shopifyCustomerId,
+                selectedProduct: formState.selectedProduct,
+                selectedVariantId: formState.selectedVariantId,
+                selectedVariantTitle: formState.selectedVariantTitle,
+                designDescription: formState.designDescription,
+                contactMode: formState.contactMode,
+                designStyle: formState.designStyle,
+                colors: formState.colors,
+                inspirationLinks: formState.inspirationLinks.filter(l => l),
+            };
 
-    } catch (error: any) {
-        console.error("Error during submission:", error);
-        setSubmissionError("There was an error submitting your request. Please try again.");
-        toast({
-            variant: 'destructive',
-            title: 'Submission Failed',
-            description: "There was an error submitting your request. Please try again.",
-        });
-    } finally {
-        setIsSubmitting(false);
-    }
-};
+            // Save to localStorage
+            saveDesignRequest(requestData);
+
+            // Show success message
+            toast({
+                title: 'Submission Successful!',
+                description: "Your design request has been submitted. View it on the My Works page.",
+            });
+
+            // Reset form state
+            const email = searchParams.get('email') || '';
+            const name = searchParams.get('name') || '';
+            const phone = searchParams.get('phone') || '';
+            const customerId = searchParams.get('customer_id') || '';
+            const address1 = searchParams.get('address1') || '';
+            const city = searchParams.get('city') || '';
+            const provinceCode = searchParams.get('provinceCode') || '';
+            const zip = searchParams.get('zip') || '';
+            const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
+            
+            setFormState({
+                ...initialFormState,
+                email: email,
+                name: name,
+                phoneNumber: phone,
+                shopifyCustomerId: customerId,
+                streetAddress: address1,
+                city: city,
+                province: provinceName,
+                postalCode: zip,
+            });
+            if (provinceName) {
+                setAvailableCities(getCitiesForProvince(provinceName));
+            }
+
+        } catch (error: any) {
+            console.error("Error during submission:", error);
+            setSubmissionError("There was an error submitting your request. Please try again.");
+            toast({
+                variant: 'destructive',
+                title: 'Submission Failed',
+                description: "There was an error submitting your request. Please try again.",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const SummaryItem = ({ label, value, isComplete }: { label: string, value: string, isComplete: boolean }) => (
         <div className="flex items-center justify-between bg-white rounded-lg p-3">
@@ -567,3 +481,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    

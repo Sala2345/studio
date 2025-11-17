@@ -1,6 +1,7 @@
+
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChatInterface } from "@/components/chat/chat-interface";
-import { Gem, Brush, PencilRuler } from "lucide-react";
+import { Gem, Brush, PencilRuler, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -28,6 +29,12 @@ export default function Home() {
                         Hire a Designer
                     </Button>
                 </Link>
+                <Link href="/my-works" passHref>
+                    <Button variant="outline">
+                        <Briefcase className="mr-2 h-4 w-4" />
+                        My Works
+                    </Button>
+                </Link>
             </div>
         </CardHeader>
         <ChatInterface />
@@ -35,3 +42,5 @@ export default function Home() {
     </main>
   );
 }
+
+    
