@@ -2,13 +2,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Download, Check } from 'lucide-react';
+import { Loader2, Send, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
@@ -18,8 +18,6 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
-import { saveAs } from 'file-saver';
 
 
 const designSteps = [
@@ -74,6 +72,7 @@ interface FormState {
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const [availableCities, setAvailableCities] = useState<string[]>([]);
 
 
@@ -166,47 +165,6 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
-    const generateDoc = async () => {
-        const {
-            name, email, phoneNumber, streetAddress, city, province, postalCode,
-            selectedProduct, selectedVariantTitle, designDescription, contactMode,
-            designStyle, colors, inspirationLinks
-        } = formState;
-
-        const doc = new Document({
-            sections: [{
-                properties: {},
-                children: [
-                    new Paragraph({ text: `Design Request for: ${name}`, heading: HeadingLevel.HEADING_1 }),
-                    new Paragraph({ text: `Submitted: ${new Date().toLocaleString()}`, heading: HeadingLevel.HEADING_3, spacing: { after: 200 } }),
-
-                    new Paragraph({ text: "Contact Information", heading: HeadingLevel.HEADING_2 }),
-                    new Paragraph({ children: [new TextRun({ text: "Name: ", bold: true }), new TextRun(name)] }),
-                    new Paragraph({ children: [new TextRun({ text: "Email: ", bold: true }), new TextRun(email)] }),
-                    new Paragraph({ children: [new TextRun({ text: "Phone: ", bold: true }), new TextRun(phoneNumber)] }),
-                    new Paragraph({ children: [new TextRun({ text: "Address: ", bold: true }), new TextRun(`${streetAddress}, ${city}, ${province}, ${postalCode}`)] }),
-                    new Paragraph({ children: [new TextRun({ text: "Preferred Contact: ", bold: true }), new TextRun(contactMode)] }),
-                    
-                    new Paragraph({ text: "Design Details", heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
-                    new Paragraph({ children: [new TextRun({ text: "Product: ", bold: true }), new TextRun(selectedProduct?.title || 'N/A')] }),
-                    new Paragraph({ children: [new TextRun({ text: "Variant: ", bold: true }), new TextRun(selectedVariantTitle || 'N/A')] }),
-                    new Paragraph({ children: [new TextRun({ text: "Design Style: ", bold: true }), new TextRun(designStyle || 'N/A')] }),
-                    new Paragraph({ children: [new TextRun({ text: "Colors: ", bold: true }), new TextRun(colors || 'N/A')] }),
-                    
-                    new Paragraph({ text: "Design Description", heading: HeadingLevel.HEADING_3, spacing: { before: 200 } }),
-                    new Paragraph(designDescription),
-
-                    new Paragraph({ text: "Inspiration Links", heading: HeadingLevel.HEADING_3, spacing: { before: 200 } }),
-                    ...inspirationLinks.filter(link => link).map(link => new Paragraph({
-                        children: [new TextRun({ text: link, style: "Hyperlink" })],
-                    })),
-                ],
-            }],
-        });
-
-        const blob = await Packer.toBlob(doc);
-        saveAs(blob, `Design-Request-${name.replace(/ /g, '-')}.docx`);
-    };
 
     const handleSubmit = async () => {
         const validationErrors = [];
@@ -231,49 +189,31 @@ function HireADesignerPageContent() {
         setIsSubmitting(true);
         
         try {
-            await generateDoc();
-
-            toast({
-                title: "Document Generated!",
-                description: "Your design request has been downloaded as a Word document.",
-            });
-
-             // Reset form state to initial values, but keep pre-filled customer data from URL
-            const email = searchParams.get('email') || '';
-            const name = searchParams.get('name') || '';
-            const phone = searchParams.get('phone') || '';
-            const customerId = searchParams.get('customer_id') || '';
-            const address1 = searchParams.get('address1') || '';
-            const city = searchParams.get('city') || '';
-            const provinceCode = searchParams.get('provinceCode') || '';
-            const zip = searchParams.get('zip') || '';
-            const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
-
-            setFormState({
-                ...initialFormState,
-                name,
-                email,
-                phoneNumber: phone,
-                streetAddress: address1,
-                city,
-                province: provinceName,
-                postalCode: zip,
-                shopifyCustomerId: customerId,
-            });
+            const queryParams = new URLSearchParams();
             
-            if (provinceName) {
-                setAvailableCities(getCitiesForProvince(provinceName));
-            } else {
-                setAvailableCities([]);
-            }
+            // Add all form fields to the query params
+            Object.entries(formState).forEach(([key, value]) => {
+                if (key === 'selectedProduct' && value) {
+                    queryParams.append('productTitle', (value as ShopifyProduct).title);
+                    queryParams.append('productId', (value as ShopifyProduct).id);
+                } else if (key === 'inspirationLinks' && Array.isArray(value)) {
+                    value.forEach(link => {
+                        if(link) queryParams.append('inspirationLinks', link);
+                    });
+                } else if (value !== null && value !== undefined) {
+                    queryParams.append(key, String(value));
+                }
+            });
+
+            router.push(`/order-summary?${queryParams.toString()}`);
 
         } catch (error: any) {
-            console.error("Error generating document:", error);
-            setSubmissionError("There was an error generating the document. Please try again.");
+            console.error("Error preparing for navigation:", error);
+            setSubmissionError("There was an error submitting your request. Please try again.");
             toast({
                 variant: 'destructive',
-                title: 'Generation Failed',
-                description: "There was an error generating the document. Please try again.",
+                title: 'Submission Failed',
+                description: "There was an error submitting your request. Please try again.",
             });
         } finally {
             setIsSubmitting(false);
@@ -464,8 +404,8 @@ function HireADesignerPageContent() {
                                     <Loader2 className="h-6 w-6 animate-spin" />
                                 ) : (
                                     <>
-                                        <Download className="mr-3 h-5 w-5" />
-                                        Submit and Download Request
+                                        <Send className="mr-3 h-5 w-5" />
+                                        Submit Design Request
                                     </>
                                 )}
                             </Button>
@@ -488,3 +428,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
