@@ -205,6 +205,9 @@ function HireADesignerPageContent() {
         setIsSubmitting(true);
         
         try {
+            // Find the selected variant object
+            const selectedVariant = formState.selectedProduct?.variants.edges.find(edge => edge.node.id === formState.selectedVariantId)?.node;
+
             // Save the design request data
             const requestData = {
                 name: formState.name,
@@ -216,8 +219,7 @@ function HireADesignerPageContent() {
                 postalCode: formState.postalCode,
                 shopifyCustomerId: formState.shopifyCustomerId,
                 selectedProduct: formState.selectedProduct,
-                selectedVariantId: formState.selectedVariantId,
-                selectedVariantTitle: formState.selectedVariantTitle,
+                selectedVariant: selectedVariant, // Pass the full variant object
                 designDescription: formState.designDescription,
                 contactMode: formState.contactMode,
                 designStyle: formState.designStyle,
@@ -482,4 +484,3 @@ export default function HireADesignerPage() {
     )
 }
 
-    

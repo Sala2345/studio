@@ -2,8 +2,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Trash2, Eye, Download, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface DesignRequest {
@@ -16,130 +17,215 @@ interface DesignRequest {
     city: string;
     province: string;
     postalCode: string;
-    selectedProduct?: { title: string };
-    selectedVariantTitle?: string;
+    shopifyCustomerId?: string;
+    selectedProduct: any;
+    selectedVariant?: any;
     designDescription: string;
-    contactMode: string;
-    designStyle: string;
-    colors: string;
-    inspirationLinks: string[];
+    contactMode?: string;
+    designStyle?: string;
+    colors?: string;
+    inspirationLinks?: string[];
 }
-
-const DetailItem = ({ label, value }: { label: string; value: string | undefined | null }) => {
-    if (!value) return null;
-    return (
-        <div className="grid grid-cols-3 gap-2 text-sm">
-            <dt className="text-muted-foreground font-medium">{label}</dt>
-            <dd className="col-span-2">{value}</dd>
-        </div>
-    );
-};
 
 export default function MyWorksPage() {
     const [requests, setRequests] = useState<DesignRequest[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [selectedRequest, setSelectedRequest] = useState<DesignRequest | null>(null);
+    const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
-        // This code runs only on the client
-        try {
-            const storedRequests = JSON.parse(localStorage.getItem('designRequests') || '[]');
-            // Sort by most recent first
-            const sortedRequests = storedRequests.sort((a: DesignRequest, b: DesignRequest) => 
-                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            );
-            setRequests(sortedRequests);
-        } catch (error) {
-            console.error("Failed to parse design requests from localStorage", error);
-            setRequests([]);
-        }
-        setIsLoading(false);
+        setIsClient(true);
+        // Load all design requests from localStorage
+        const savedRequests = JSON.parse(localStorage.getItem('designRequests') || '[]');
+        setRequests(savedRequests.sort((a: DesignRequest, b: DesignRequest) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())); // Show newest first
     }, []);
 
-    if (isLoading) {
-        return (
+    const deleteRequest = (id: number) => {
+        if (confirm('Are you sure you want to delete this design request?')) {
+            const updatedRequests = requests.filter(req => req.id !== id);
+            setRequests(updatedRequests);
+            // The list is stored oldest-first, so re-reverse it before saving
+            localStorage.setItem('designRequests', JSON.stringify([...updatedRequests].reverse()));
+        }
+    };
+
+    const viewRequest = (request: DesignRequest) => {
+        setSelectedRequest(request);
+    };
+
+    const downloadHTML = (request: DesignRequest) => {
+        const htmlContent = generateHTML(request);
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `design-request-${request.id}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const generateHTML = (request: DesignRequest) => {
+        return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design Request - ${request.name}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f5f5f5; color: #2d2d2d; line-height: 1.6;}
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #ED1C24; border-bottom: 3px solid #ED1C24; padding-bottom: 10px; font-size: 28px; }
+        h2 { color: #2d2d2d; margin-top: 30px; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 20px;}
+        .info-group { margin: 15px 0; display: flex; flex-wrap: wrap; }
+        .label { font-weight: bold; color: #666; display: inline-block; width: 180px; flex-shrink: 0; }
+        .value { color: #2d2d2d; }
+        .description-value { margin-top: 10px; white-space: pre-wrap; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+        .timestamp { text-align: right; color: #999; font-size: 14px; margin-top: 30px; }
+        .list { list-style: none; padding: 0; }
+        .list li { padding: 8px; background: #f9f9f9; margin: 5px 0; border-radius: 4px; word-break: break-all; }
+        .list li a { color: #007aff; text-decoration: none; }
+        .list li a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Design Request #${request.id}</h1>
+        
+        <h2>Customer Information</h2>
+        <div class="info-group"><span class="label">Name:</span><span class="value">${request.name}</span></div>
+        <div class="info-group"><span class="label">Email:</span><span class="value">${request.email}</span></div>
+        <div class="info-group"><span class="label">Phone Number:</span><span class="value">${request.phoneNumber}</span></div>
+        <div class="info-group"><span class="label">Address:</span><span class="value">${request.streetAddress}, ${request.city}, ${request.province}, ${request.postalCode}</span></div>
+        ${request.shopifyCustomerId ? `<div class="info-group"><span class="label">Customer ID:</span><span class="value">${request.shopifyCustomerId}</span></div>` : ''}
+
+        <h2>Product Selection</h2>
+        <div class="info-group"><span class="label">Product:</span><span class="value">${request.selectedProduct?.title || 'N/A'}</span></div>
+        ${request.selectedVariant ? `<div class="info-group"><span class="label">Variant:</span><span class="value">${request.selectedVariant.title}</span></div>` : ''}
+
+        <h2>Design Details</h2>
+        <div class="info-group"><span class="label">Description:</span></div>
+        <div class="description-value">${request.designDescription}</div>
+        
+        ${request.contactMode ? `<div class="info-group"><span class="label">Contact Method:</span><span class="value">${request.contactMode}</span></div>` : ''}
+        ${request.designStyle ? `<div class="info-group"><span class="label">Design Style:</span><span class="value">${request.designStyle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span></div>` : ''}
+        ${request.colors ? `<div class="info-group"><span class="label">Colors:</span><span class="value">${request.colors}</span></div>` : ''}
+
+        ${request.inspirationLinks && request.inspirationLinks.length > 0 && request.inspirationLinks[0] ? `
+        <h2>Inspiration Links</h2>
+        <ul class="list">
+            ${request.inspirationLinks.map(link => `<li><a href="${link}" target="_blank" rel="noopener noreferrer">${link}</a></li>`).join('')}
+        </ul>
+        ` : ''}
+
+        <div class="timestamp">
+            Submitted on: ${new Date(request.timestamp).toLocaleString()}
+        </div>
+    </div>
+</body>
+</html>
+        `;
+    };
+
+    if (!isClient) {
+         return (
              <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
                 <p>Loading your works...</p>
             </div>
         )
     }
 
+    if (selectedRequest) {
+        return (
+            <div className="bg-background min-h-screen">
+                <div className="max-w-4xl mx-auto p-4 sm:p-6">
+                    <Button 
+                        onClick={() => setSelectedRequest(null)} 
+                        className="mb-6"
+                        variant="outline"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to List
+                    </Button>
+                    <div 
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: generateHTML(selectedRequest).replace(/<!DOCTYPE html>/i, '').replace(/<html[^>]*>/i, '').replace(/<\/html>/i, '').replace(/<head>[\s\S]*?<\/head>/i, '').replace(/<body[^>]*>/i, '').replace(/<\/body>/i, '') }}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-muted/40 p-4 sm:p-6 lg:p-8">
             <div className="max-w-4xl mx-auto">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-3xl">My Works</CardTitle>
-                        <CardDescription>A log of your submitted design requests.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        {requests.length > 0 ? (
-                            <Accordion type="single" collapsible className="w-full">
-                                {requests.map((req) => (
-                                    <AccordionItem key={req.id} value={String(req.id)}>
-                                        <AccordionTrigger className="hover:no-underline">
-                                            <div className="flex justify-between items-center w-full pr-4">
-                                                <div className="text-left">
-                                                    <p className="font-semibold">{req.selectedProduct?.title || 'Custom Request'}</p>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Submitted on {format(new Date(req.timestamp), "MMMM d, yyyy 'at' h:mm a")}
-                                                    </p>
-                                                </div>
-                                                <span className="text-sm font-medium">{req.name}</span>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                            <div className="space-y-4 px-4 py-2 border-l-2 border-primary ml-2">
-                                                <h4 className="font-semibold">Request Details</h4>
-                                                <div className="space-y-2">
-                                                    <DetailItem label="Product" value={req.selectedProduct?.title} />
-                                                    <DetailItem label="Variant" value={req.selectedVariantTitle} />
-                                                    <DetailItem label="Description" value={req.designDescription} />
-                                                </div>
-                                                
-                                                <h4 className="font-semibold pt-2">Contact Info</h4>
-                                                 <div className="space-y-2">
-                                                    <DetailItem label="Name" value={req.name} />
-                                                    <DetailItem label="Email" value={req.email} />
-                                                    <DetailItem label="Phone" value={req.phoneNumber} />
-                                                    <DetailItem label="Address" value={`${req.streetAddress}, ${req.city}, ${req.province}, ${req.postalCode}`} />
-                                                </div>
-
-                                                <h4 className="font-semibold pt-2">Preferences</h4>
-                                                <div className="space-y-2">
-                                                     <DetailItem label="Contact Method" value={req.contactMode} />
-                                                     <DetailItem label="Style" value={req.designStyle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} />
-                                                     <DetailItem label="Colors" value={req.colors} />
-                                                </div>
-
-                                                {req.inspirationLinks && req.inspirationLinks.length > 0 && (
-                                                    <>
-                                                        <h4 className="font-semibold pt-2">Inspiration Links</h4>
-                                                        <ul className="list-disc pl-5 space-y-1">
-                                                            {req.inspirationLinks.map((link, index) => (
-                                                                <li key={index}>
-                                                                    <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:no-underline">
-                                                                        {link}
-                                                                    </a>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        ) : (
-                            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                                <p className="text-muted-foreground">You haven't submitted any design requests yet.</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                <h1 className="text-3xl font-bold mb-6 text-foreground">My Design Requests</h1>
+                
+                {requests.length === 0 ? (
+                    <Card>
+                        <CardContent className="p-12 text-center">
+                            <p className="text-muted-foreground">No design requests found.</p>
+                            <p className="text-sm text-muted-foreground/80 mt-2">Submit a request from the 'Hire a Designer' page to see it here.</p>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <div className="grid gap-4">
+                        {requests.map((request) => (
+                            <Card key={request.id} className="hover:shadow-md transition-shadow">
+                                <CardHeader>
+                                    <CardTitle className="flex justify-between items-center text-lg">
+                                        <span className="text-foreground">Request #{request.id}</span>
+                                        <span className="text-sm font-normal text-muted-foreground">
+                                            {format(new Date(request.timestamp), "MMM d, yyyy")}
+                                        </span>
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Product</p>
+                                            <p className="font-medium text-foreground">{request.selectedProduct?.title || 'N/A'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Customer</p>
+                                            <p className="font-medium text-foreground">{request.name}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-4 border-t pt-4">
+                                        <Button 
+                                            onClick={() => viewRequest(request)}
+                                            variant="default"
+                                            size="sm"
+                                        >
+                                            <Eye className="w-4 h-4 mr-2" />
+                                            View Details
+                                        </Button>
+                                        <Button 
+                                            onClick={() => downloadHTML(request)}
+                                            variant="outline"
+                                            size="sm"
+                                        >
+                                            <Download className="w-4 h-4 mr-2" />
+                                            Download
+                                        </Button>
+                                        <div className="flex-grow"></div>
+                                        <Button 
+                                            onClick={() => deleteRequest(request.id)}
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                        >
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Delete
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
 }
-
-    
