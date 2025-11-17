@@ -189,26 +189,43 @@ function HireADesignerPageContent() {
         setIsSubmitting(true);
         
         try {
-            const queryParams = new URLSearchParams();
-            
-            // Add all form fields to the query params
-            Object.entries(formState).forEach(([key, value]) => {
-                if (key === 'selectedProduct' && value) {
-                    queryParams.append('productTitle', (value as ShopifyProduct).title);
-                    queryParams.append('productId', (value as ShopifyProduct).id);
-                } else if (key === 'inspirationLinks' && Array.isArray(value)) {
-                    value.forEach(link => {
-                        if(link) queryParams.append('inspirationLinks', link);
-                    });
-                } else if (value !== null && value !== undefined) {
-                    queryParams.append(key, String(value));
-                }
+            // Simulate submission
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            toast({
+                title: 'Submission Successful!',
+                description: "We've received your design request and will be in touch shortly.",
             });
 
-            router.push(`/order-summary?${queryParams.toString()}`);
+            // Reset form state, but keep pre-filled customer info from URL params
+            const email = searchParams.get('email') || '';
+            const name = searchParams.get('name') || '';
+            const phone = searchParams.get('phone') || '';
+            const customerId = searchParams.get('customer_id') || '';
+            const address1 = searchParams.get('address1') || '';
+            const city = searchParams.get('city') || '';
+            const provinceCode = searchParams.get('provinceCode') || '';
+            const zip = searchParams.get('zip') || '';
+            const provinceName = provinces.find(p => p.code === provinceCode)?.name || '';
+            
+            setFormState({
+                ...initialFormState,
+                email: email,
+                name: name,
+                phoneNumber: phone,
+                shopifyCustomerId: customerId,
+                streetAddress: address1,
+                city: city,
+                province: provinceName,
+                postalCode: zip,
+            });
+            if (provinceName) {
+                setAvailableCities(getCitiesForProvince(provinceName));
+            }
+
 
         } catch (error: any) {
-            console.error("Error preparing for navigation:", error);
+            console.error("Error during submission simulation:", error);
             setSubmissionError("There was an error submitting your request. Please try again.");
             toast({
                 variant: 'destructive',
