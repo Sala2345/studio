@@ -3,9 +3,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, signOut } from 'firebase/firestore';
 import { Loader2, ExternalLink, LogOut } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 
 // Define the structure of a design request document
 interface DesignRequest {
@@ -30,8 +29,8 @@ interface DesignRequest {
 
 function LogAllFormWorksPage() {
   const router = useRouter();
-  const firestore = useFirestore();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
