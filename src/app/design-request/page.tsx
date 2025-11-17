@@ -27,7 +27,7 @@ interface DesignRequest {
   fileUrls?: string[];
 }
 
-function LogAllFormWorksPage() {
+function DesignRequestPage() {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
@@ -88,7 +88,7 @@ function LogAllFormWorksPage() {
       <Card className="w-full max-w-7xl mx-auto">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Design Request Logs</CardTitle>
+            <CardTitle>Design Requests</CardTitle>
             <CardDescription>A real-time log of all submitted design requests.</CardDescription>
           </div>
           <Button onClick={handleLogout} variant="outline">
@@ -164,5 +164,4 @@ function LogAllFormWorksPage() {
   );
 }
 
-export default LogAllFormWorksPage;
-    
+export default DesignRequestPage;

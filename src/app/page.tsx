@@ -28,10 +28,10 @@ export default function Home() {
                         Hire a Designer
                     </Button>
                 </Link>
-                <Link href="/log-all-form-works" passHref>
+                <Link href="/design-request" passHref>
                     <Button variant="outline">
                         <ClipboardList className="mr-2 h-4 w-4" />
-                        Request Log
+                        Design Request
                     </Button>
                 </Link>
             </div>
