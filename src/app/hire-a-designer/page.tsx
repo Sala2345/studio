@@ -237,9 +237,60 @@ function HireADesignerPageContent() {
 
             saveDesignRequest(requestData);
 
+            // NEW: Send to Zapier Webhook
+            const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/25403328/uzbcv85/';
+            try {
+                const response = await fetch(ZAPIER_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        // Format data for Shopify order creation
+                        customer: {
+                            first_name: requestData.name.split(' ')[0] || requestData.name,
+                            last_name: requestData.name.split(' ').slice(1).join(' ') || '',
+                            email: requestData.email,
+                            phone: requestData.phoneNumber,
+                        },
+                        shipping_address: {
+                            address1: requestData.streetAddress,
+                            city: requestData.city,
+                            province: requestData.province,
+                            zip: requestData.postalCode,
+                            country: 'Canada', // or make this dynamic
+                            phone: requestData.phoneNumber,
+                        },
+                        line_items: [{
+                            variant_id: requestData.selectedVariant?.id || formState.selectedProduct?.variants?.edges[0]?.node.id,
+                            quantity: 1,
+                            price: formState.selectedProduct?.priceRangeV2.minVariantPrice.amount,
+                        }],
+                        note: `Design Request:\n\n${requestData.designDescription}\n\nContact Method: ${requestData.contactMode || 'Email'}\nStyle: ${requestData.designStyle || 'Not specified'}\n\nFiles: ${requestData.uploadedFiles?.length || 0} uploaded\nInspiration Links: ${requestData.inspirationLinks?.filter(l => l).length || 0}`,
+                        tags: 'design-request,custom-order',
+                        // Include all additional data as metafields
+                        metafields: {
+                            design_description: requestData.designDescription,
+                            contact_method: requestData.contactMode,
+                            design_style: requestData.designStyle,
+                            colors: requestData.colors,
+                            uploaded_files: JSON.stringify(requestData.uploadedFiles),
+                            inspiration_links: JSON.stringify(requestData.inspirationLinks),
+                        }
+                    })
+                });
+                if (!response.ok) {
+                    throw new Error('Webhook failed');
+                }
+                console.log('Successfully sent to Zapier');
+            } catch (webhookError) {
+                console.error('Zapier webhook error:', webhookError);
+                // Don't fail the entire submission if webhook fails
+            }
+
             toast({
                 title: 'Submission Successful!',
-                description: "Your design request has been submitted. View it on the My Works page.",
+                description: "Your design request has been submitted and order is being created.",
             });
 
             const email = searchParams.get('email') || '';
@@ -499,3 +550,5 @@ export default function HireADesignerPage() {
     )
 }
 
+
+    
