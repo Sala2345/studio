@@ -18,9 +18,7 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
-import { FileUploadSection } from '@/components/FileUploadSection';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useUploader } from 'next-uploadthing';
 
 interface UploadedFile {
   name: string;
@@ -95,22 +93,6 @@ const saveDesignRequest = (requestData: any) => {
     return newRequest;
 };
 
-function dataURLtoFile(dataurl: string, filename: string): File {
-    let arr = dataurl.split(','),
-        mimeMatch = arr[0].match(/:(.*?);/),
-        mime = mimeMatch ? mimeMatch[1] : 'image/png',
-        bstr = atob(arr[1]), 
-        n = bstr.length, 
-        u8arr = new Uint8Array(n);
-        
-    while(n--){
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-    
-    return new File([u8arr], filename, {type:mime});
-}
-
-
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
     const [availableCities, setAvailableCities] = useState<string[]>([]);
@@ -120,7 +102,6 @@ function HireADesignerPageContent() {
     const [isDesignerModalOpen, setIsDesignerModalOpen] = useState(false);
     
     const { toast } = useToast();
-    const { startUpload, isUploading } = useUploader("designFileUploader");
 
      useEffect(() => {
         const handleMessage = async (event: MessageEvent) => {
@@ -128,33 +109,18 @@ function HireADesignerPageContent() {
                 setIsDesignerModalOpen(false); // Close the modal
                 const { file: fileData } = event.data;
                 
-                // The `fileData.url` is a data URI. We need to convert it to a File and upload it.
-                const fileToUpload = dataURLtoFile(fileData.url, fileData.name);
-
-                try {
-                    const res = await startUpload([fileToUpload]);
-                    if (res && res.length > 0) {
-                        const uploadedFile = res[0];
-                        const newFile: UploadedFile = {
-                            name: uploadedFile.name,
-                            url: uploadedFile.url,
-                            size: uploadedFile.size,
-                            type: fileToUpload.type,
-                            key: uploadedFile.key,
-                        };
-                        // Add the newly uploaded file to the form state
-                        setFormState(prev => ({
-                            ...prev,
-                            uploadedFiles: [...prev.uploadedFiles, newFile]
-                        }));
-                        toast({ title: "AI Design Added!", description: "The generated design has been uploaded and attached to your request." });
-                    } else {
-                        throw new Error("Upload failed to return a result.");
-                    }
-                } catch (error) {
-                    console.error("Upload failed", error);
-                    toast({ variant: 'destructive', title: "Upload Failed", description: "Could not upload the generated AI design." });
-                }
+                const newFile: UploadedFile = {
+                    name: fileData.name,
+                    url: fileData.url, // This will be a data URI
+                    size: fileData.size,
+                    type: fileData.type,
+                    key: fileData.key,
+                };
+                setFormState(prev => ({
+                    ...prev,
+                    uploadedFiles: [...prev.uploadedFiles, newFile]
+                }));
+                toast({ title: "AI Design Added!", description: "The generated design has been attached to your request." });
             }
         };
 
@@ -242,10 +208,6 @@ function HireADesignerPageContent() {
 
     const handleLinksChange = useCallback((links: string[]) => {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
-    }, []);
-
-    const handleFilesUploaded = useCallback((files: UploadedFile[]) => {
-        setFormState(prev => ({ ...prev, uploadedFiles: files }));
     }, []);
 
 
@@ -535,15 +497,6 @@ function HireADesignerPageContent() {
                                 <ColorPreference onChange={handleColorChange} />
                             </div>
                             
-                            <div className="my-10">
-                                <h2 className="text-lg font-medium text-gray-800 mb-2">Upload Files</h2>
-                                 <p className="text-sm text-gray-600 mb-4">Upload any logos, images, or documents for our designers.</p>
-                                 <FileUploadSection 
-                                    uploadedFiles={formState.uploadedFiles}
-                                    onFilesChange={handleFilesUploaded} 
-                                />
-                            </div>
-
                              <div className="my-10">
                                 <InspirationLinks
                                     onChange={handleLinksChange}
@@ -594,11 +547,11 @@ function HireADesignerPageContent() {
                                 
                                 <Button 
                                     onClick={handleSubmit}
-                                    disabled={isSubmitting || isUploading} 
+                                    disabled={isSubmitting} 
                                     size="lg" 
                                     className="w-full mt-6 text-lg py-7"
                                 >
-                                    {isSubmitting || isUploading ? (
+                                    {isSubmitting ? (
                                         <Loader2 className="h-6 w-6 animate-spin" />
                                     ) : (
                                         <>

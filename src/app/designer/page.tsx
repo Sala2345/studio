@@ -29,20 +29,6 @@ const sendFileToParent = (fileData: any) => {
   }
 };
 
-function dataURLtoFile(dataurl: string, filename: string): File {
-    let arr = dataurl.split(','),
-        mimeMatch = arr[0].match(/:(.*?);/),
-        mime = mimeMatch ? mimeMatch[1] : 'image/png',
-        bstr = atob(arr[1]), 
-        n = bstr.length, 
-        u8arr = new Uint8Array(n);
-        
-    while(n--){
-        u8arr[n] = bstr.charCodeAt(n);
-    }
-    
-    return new File([u8arr], filename, {type:mime});
-}
 
 function DesignerPageContent() {
   const searchParams = useSearchParams();
@@ -186,17 +172,10 @@ function DesignerPageContent() {
     if (!generatedDesign) return;
     setIsSaving(true);
     try {
-        const file = dataURLtoFile(generatedDesign, 'ai-generated-design.png');
-
-        // This is a simplified "upload" for the sake of the parent form.
-        // In a real scenario, you'd use UploadThing here and get a real URL.
-        // For now, we'll pass the data URI which can be converted back to a file.
         const fileData = {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            // Passing the data URI to be handled by the parent
-            // A real URL would be better, but this works for local state management
+            name: 'ai-generated-design.png',
+            size: 0, // Size is not easily available for data URI without conversion
+            type: 'image/png',
             url: generatedDesign, 
             key: `generated-${Date.now()}`
         };

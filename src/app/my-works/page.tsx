@@ -111,13 +111,6 @@ export default function MyWorksPage() {
         ${request.designStyle ? `<div class="info-group"><span class="label">Design Style:</span><span class="value">${request.designStyle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span></div>` : ''}
         ${request.colors ? `<div class="info-group"><span class="label">Colors:</span><span class="value">${request.colors}</span></div>` : ''}
 
-        ${request.uploadedFiles && request.uploadedFiles.length > 0 ? `
-        <h2>Uploaded Files</h2>
-        <ul class="list">
-            ${request.uploadedFiles.map(file => `<li><a href="${file.url}" target="_blank" rel="noopener noreferrer">${file.name}</a></li>`).join('')}
-        </ul>
-        ` : ''}
-
         ${request.inspirationLinks && request.inspirationLinks.filter(l=>l).length > 0 ? `
         <h2>Inspiration Links</h2>
         <ul class="list">
