@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     const requestData = await request.json();
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/25403328/uzbcv85/';
     
-    // Data mapping for Zapier
+    // Data mapping for Zapier, matching the required fields.
     const zapierPayload = {
         customer: {
             first_name: requestData.name.split(' ')[0] || requestData.name,
@@ -19,12 +19,13 @@ export async function POST(request: Request) {
             city: requestData.city,
             province: requestData.province,
             zip: requestData.postalCode,
-            country: 'Canada',
+            country: 'Canada', // Defaulting as requested
             phone: requestData.phoneNumber,
         },
         line_items: [{
-            variant_id: requestData.selectedVariant?.id || requestData.selectedProduct?.variants?.edges[0]?.node.id,
-            quantity: 1,
+            title: requestData.selectedProduct?.title, // Product title
+            variant_name: requestData.selectedVariant?.title, // Variant name/title as requested
+            quantity: 1, // Defaulting to 1
             price: requestData.selectedProduct?.priceRangeV2.minVariantPrice.amount,
         }],
         note: `Design Request:\n\n${requestData.designDescription}\n\nContact Method: ${requestData.contactMode || 'Email'}\nStyle: ${requestData.designStyle || 'Not specified'}\n\nFiles: ${requestData.uploadedFiles?.length || 0} uploaded\nInspiration Links: ${requestData.inspirationLinks?.filter((l:string) => l).length || 0}`,
