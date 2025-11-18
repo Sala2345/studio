@@ -1,17 +1,30 @@
-'use client'
+'use client';
 import { useState } from 'react';
 import { FileUploaderRegular } from '@uploadcare/react-uploader/next';
 import '@uploadcare/react-uploader/core.css';
 
-function App() {
-  const [uploadedUrl, setUploadedUrl] = useState(null);
+interface UploadedFile {
+  name: string;
+  url: string;
+  size: number;
+  type: string;
+}
 
-  const handleUploadSuccess = (e: any) => {
+interface UploadcareWidgetProps {
+  onFilesUploaded: (files: UploadedFile[]) => void;
+}
+
+function UploadcareWidget({ onFilesUploaded }: UploadcareWidgetProps) {
+  const handleUpload = (e: any) => {
+    const uploadedFiles = e.detail.successEntries.map((file: any) => ({
+      name: file.fileInfo.originalFilename,
+      url: file.cdnUrl,
+      size: file.fileInfo.size,
+      type: file.fileInfo.mimeType,
+    }));
+    onFilesUploaded(uploadedFiles);
     const fileUrl = e.detail?.successEntries?.[0]?.cdnUrl;
-    if (fileUrl) {
-      setUploadedUrl(fileUrl);
-      console.log("Uploaded file URL:", fileUrl);
-    }
+    console.log("Extracted URL:", fileUrl);
   };
 
   return (
@@ -20,19 +33,11 @@ function App() {
         sourceList="local, camera, facebook, gdrive"
         classNameUploader="uc-light"
         pubkey="bfba8b2aa59367bc12a8"
-        onCommonUploadSuccess={handleUploadSuccess}
+        onCommonUploadSuccess={handleUpload}
+        multiple
       />
-
-      {uploadedUrl && (
-        <div style={{ marginTop: '20px' }}>
-          <p><strong>Uploaded File URL:</strong></p>
-          <a href={uploadedUrl} target="_blank" rel="noopener noreferrer">
-            {uploadedUrl}
-          </a>
-        </div>
-      )}
     </div>
   );
 }
 
-export default App;
+export default UploadcareWidget;
