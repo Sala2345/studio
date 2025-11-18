@@ -17,8 +17,8 @@ interface UploadcareWidgetProps {
 
 export function UploadcareWidget({ onFilesUploaded }: UploadcareWidgetProps) {
 
-  const handleSuccess = useCallback((result: { detail: { successEntries: any[] } }) => {
-    const uploadedFiles = result.detail.successEntries.map(entry => ({
+  const handleSuccess = useCallback((result: any[]) => {
+    const uploadedFiles = result.map(entry => ({
       name: entry.fileInfo.originalFilename || `file-${entry.uuid}`,
       url: entry.cdnUrl,
       size: entry.fileInfo.size,
@@ -33,7 +33,7 @@ export function UploadcareWidget({ onFilesUploaded }: UploadcareWidgetProps) {
          sourceList="local, camera, facebook, gdrive"
          classNameUploader="uc-light"
          pubkey="bfba8b2aa59367bc12a8"
-         onCommonUploadSuccess={handleSuccess}
+         onSuccess={handleSuccess}
       />
     </div>
   );
