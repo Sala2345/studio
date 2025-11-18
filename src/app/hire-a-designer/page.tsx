@@ -18,7 +18,7 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
-import { UploadcareWidget } from '@/components/uploadcare-widget';
+import UploadcareWidget from '@/components/uploadcare-widget';
 
 interface UploadedFile {
   name: string;
@@ -549,5 +549,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
