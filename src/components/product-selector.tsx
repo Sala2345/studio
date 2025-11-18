@@ -16,6 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export interface ShopifyProductVariant {
     id: string;
     title: string;
+    selectedOptions: {
+        name: string;
+        value: string;
+    }[];
 }
 
 export interface ShopifyProduct {
@@ -124,6 +128,8 @@ export function ProductSelector({ selectedProduct, onProductSelect, selectedVari
 
 
     if (selectedProduct) {
+        const selectedVariant = selectedProduct.variants.edges.find(edge => edge.node.id === selectedVariantId)?.node;
+
         return (
              <Card>
                 <CardHeader>
@@ -141,6 +147,9 @@ export function ProductSelector({ selectedProduct, onProductSelect, selectedVari
                         <div className="flex-1 w-full">
                             <p className="font-semibold">{selectedProduct.title}</p>
                             <p className="font-bold text-destructive">{new Intl.NumberFormat('en-US', { style: 'currency', currency: selectedProduct.priceRangeV2.minVariantPrice.currencyCode }).format(parseFloat(selectedProduct.priceRangeV2.minVariantPrice.amount))}</p>
+                             {selectedVariant?.selectedOptions && selectedVariant.selectedOptions.map(opt => opt.value.toLowerCase() !== 'default title' && (
+                                <p key={opt.name} className="text-sm text-muted-foreground">{opt.name}: {opt.value}</p>
+                             ))}
                              {selectedProduct.variants.edges.length > 1 && (
                                 <div className="mt-2">
                                      <Select value={selectedVariantId || ''} onValueChange={(value) => onVariantSelect(value)}>

@@ -77,6 +77,10 @@ export async function getProducts(query?: string) {
                   node {
                     id
                     title
+                    selectedOptions {
+                      name
+                      value
+                    }
                   }
                 }
               }
