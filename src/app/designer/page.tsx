@@ -12,12 +12,37 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { generateDesign } from "@/ai/flows/generate-design";
-import { Loader2, Download, Edit } from "lucide-react";
+import { Loader2, Download, Edit, Save } from "lucide-react";
 import { designTemplates, DesignTemplate } from "@/lib/design-templates";
 import { cn } from "@/lib/utils";
 
 const MAX_IMAGE_SIZE_MB = 0.95; // Just under 1MB to be safe
 const MAX_IMAGE_DIMENSION = 1024; // Max width/height for resizing
+
+// Function to communicate back to the parent window
+const sendFileToParent = (fileData: any) => {
+  if (window.opener) {
+    window.opener.postMessage({ type: 'UPLOADED_FILE', file: fileData }, '*');
+    window.close();
+  } else if (window.parent) {
+    window.parent.postMessage({ type: 'ADD_GENERATED_DESIGN', file: fileData }, '*');
+  }
+};
+
+function dataURLtoFile(dataurl: string, filename: string): File {
+    let arr = dataurl.split(','),
+        mimeMatch = arr[0].match(/:(.*?);/),
+        mime = mimeMatch ? mimeMatch[1] : 'image/png',
+        bstr = atob(arr[1]), 
+        n = bstr.length, 
+        u8arr = new Uint8Array(n);
+        
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    return new File([u8arr], filename, {type:mime});
+}
 
 function DesignerPageContent() {
   const searchParams = useSearchParams();
@@ -30,19 +55,28 @@ function DesignerPageContent() {
   const [height, setHeight] = useState<number | string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editPrompt, setEditPrompt] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
 
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const resizeCanvasRef = useRef<HTMLCanvasElement>(null);
 
-
   useEffect(() => {
+    // Check if running inside an iframe
+    if (window.self !== window.top) {
+      setIsInIframe(true);
+    }
     const templateId = searchParams.get('template');
     if (templateId) {
       const template = designTemplates.find(t => t.id === templateId);
       if (template) {
         handleTemplateSelect(template);
       }
+    }
+    const initialPrompt = searchParams.get('prompt');
+    if (initialPrompt) {
+        setPrompt(decodeURIComponent(initialPrompt));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -88,7 +122,6 @@ function DesignerPageContent() {
         canvas.height = height;
         ctx.drawImage(img, 0, 0, width, height);
         
-        // Use a lower quality for JPEG to further reduce size
         const resizedDataUrl = canvas.toDataURL(file.type, 0.9);
         setBaseImage(resizedDataUrl);
          toast({
@@ -100,7 +133,6 @@ function DesignerPageContent() {
     };
     reader.readAsDataURL(file);
   };
-
 
   const handleGenerateClick = async (isEdit: boolean = false) => {
     const currentPrompt = isEdit ? editPrompt : prompt;
@@ -149,6 +181,45 @@ function DesignerPageContent() {
       document.body.removeChild(link);
     }
   };
+  
+  const handleUseDesign = async () => {
+    if (!generatedDesign) return;
+    setIsSaving(true);
+    try {
+        const file = dataURLtoFile(generatedDesign, 'ai-generated-design.png');
+
+        // This is a simplified "upload" for the sake of the parent form.
+        // In a real scenario, you'd use UploadThing here and get a real URL.
+        // For now, we'll pass the data URI which can be converted back to a file.
+        const fileData = {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            // Passing the data URI to be handled by the parent
+            // A real URL would be better, but this works for local state management
+            url: generatedDesign, 
+            key: `generated-${Date.now()}`
+        };
+
+        sendFileToParent(fileData);
+        
+        toast({
+            title: "Design Saved",
+            description: "The generated design has been added to your request.",
+        });
+
+    } catch (error) {
+        console.error("Error saving design:", error);
+        toast({
+            variant: "destructive",
+            title: "Could Not Save Design",
+            description: "There was an error adding the design to your request."
+        });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
 
   const generateResizedImage = (): string | null => {
     const canvas = canvasRef.current;
@@ -174,13 +245,11 @@ function DesignerPageContent() {
     let sx, sy, sWidth, sHeight;
 
     if (imageAspect > targetAspect) {
-        // Image is wider than target
         sHeight = img.naturalHeight;
         sWidth = sHeight * targetAspect;
         sx = (img.naturalWidth - sWidth) / 2;
         sy = 0;
     } else {
-        // Image is taller than target
         sWidth = img.naturalWidth;
         sHeight = sWidth / targetAspect;
         sx = 0;
@@ -273,7 +342,7 @@ function DesignerPageContent() {
                   </div>
                 </div>
 
-                <Button onClick={() => handleGenerateClick(false)} disabled={isLoading} className="w-full text-lg py-6">
+                <Button onClick={() => handleGenerateClick(false)} disabled={isLoading || isSaving} className="w-full text-lg py-6">
                     {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                     Generate Design
                 </Button>
@@ -294,14 +363,23 @@ function DesignerPageContent() {
                       <Image src={generatedDesign} alt="Generated design" fill className="object-contain" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-                      <Button onClick={() => handleDownload(generatedDesign, 'generated-design-original.png')} variant="secondary">
-                          <Download className="mr-2"/> Download Original
-                      </Button>
-                      <Button onClick={() => setIsEditing(true)} variant="outline">
-                          <Edit className="mr-2" /> Edit Image
-                      </Button>
+                       {isInIframe ? (
+                         <Button onClick={handleUseDesign} disabled={isSaving} className="w-full sm:col-span-2">
+                           {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}
+                           Use This Design
+                         </Button>
+                       ) : (
+                        <>
+                          <Button onClick={() => handleDownload(generatedDesign, 'generated-design-original.png')} variant="secondary">
+                              <Download className="mr-2"/> Download Original
+                          </Button>
+                          <Button onClick={() => setIsEditing(true)} variant="outline">
+                              <Edit className="mr-2" /> Edit Image
+                          </Button>
+                        </>
+                       )}
                     </div>
-                    {width && height && (
+                    {width && height && !isInIframe && (
                       <Button onClick={() => handleDownload(generateResizedImage(), `design-${width}x${height}.png`)} variant="default" className="w-full">
                           <Download className="mr-2"/> Download {width}" x {height}"
                       </Button>
@@ -334,7 +412,7 @@ function DesignerPageContent() {
                             onChange={(e) => setEditPrompt(e.target.value)}
                             className="min-h-[100px]"
                         />
-                        <Button onClick={() => handleGenerateClick(true)} disabled={isLoading} className="w-full">
+                        <Button onClick={() => handleGenerateClick(true)} disabled={isLoading || isSaving} className="w-full">
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Apply Customization
                         </Button>

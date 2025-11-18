@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Send, Check } from 'lucide-react';
+import { Loader2, Send, Check, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
 import { FileUploadSection } from '@/components/FileUploadSection';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useUploader } from 'next-uploadthing';
 
 interface UploadedFile {
   name: string;
@@ -93,19 +95,74 @@ const saveDesignRequest = (requestData: any) => {
     return newRequest;
 };
 
+function dataURLtoFile(dataurl: string, filename: string): File {
+    let arr = dataurl.split(','),
+        mimeMatch = arr[0].match(/:(.*?);/),
+        mime = mimeMatch ? mimeMatch[1] : 'image/png',
+        bstr = atob(arr[1]), 
+        n = bstr.length, 
+        u8arr = new Uint8Array(n);
+        
+    while(n--){
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    return new File([u8arr], filename, {type:mime});
+}
+
 
 function HireADesignerPageContent() {
     const searchParams = useSearchParams();
-    const router = useRouter();
     const [availableCities, setAvailableCities] = useState<string[]>([]);
-
-
     const [formState, setFormState] = useState<FormState>(initialFormState);
-
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
-
+    const [isDesignerModalOpen, setIsDesignerModalOpen] = useState(false);
+    
     const { toast } = useToast();
+    const { startUpload, isUploading } = useUploader("designFileUploader");
+
+     useEffect(() => {
+        const handleMessage = async (event: MessageEvent) => {
+            if (event.data?.type === 'ADD_GENERATED_DESIGN') {
+                setIsDesignerModalOpen(false); // Close the modal
+                const { file: fileData } = event.data;
+                
+                // The `fileData.url` is a data URI. We need to convert it to a File and upload it.
+                const fileToUpload = dataURLtoFile(fileData.url, fileData.name);
+
+                try {
+                    const res = await startUpload([fileToUpload]);
+                    if (res && res.length > 0) {
+                        const uploadedFile = res[0];
+                        const newFile: UploadedFile = {
+                            name: uploadedFile.name,
+                            url: uploadedFile.url,
+                            size: uploadedFile.size,
+                            type: fileToUpload.type,
+                            key: uploadedFile.key,
+                        };
+                        // Add the newly uploaded file to the form state
+                        setFormState(prev => ({
+                            ...prev,
+                            uploadedFiles: [...prev.uploadedFiles, newFile]
+                        }));
+                        toast({ title: "AI Design Added!", description: "The generated design has been uploaded and attached to your request." });
+                    } else {
+                        throw new Error("Upload failed to return a result.");
+                    }
+                } catch (error) {
+                    console.error("Upload failed", error);
+                    toast({ variant: 'destructive', title: "Upload Failed", description: "Could not upload the generated AI design." });
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
 
     const handleProductSelect = useCallback((product: ShopifyProduct | null) => {
         setFormState(prev => ({
@@ -238,7 +295,6 @@ function HireADesignerPageContent() {
 
             saveDesignRequest(requestData);
 
-            // NEW: Send to Zapier Webhook
             const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/25403328/uzbcv85/';
             try {
                 const response = await fetch(ZAPIER_WEBHOOK_URL, {
@@ -247,7 +303,6 @@ function HireADesignerPageContent() {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        // Format data for Shopify order creation
                         customer: {
                             first_name: requestData.name.split(' ')[0] || requestData.name,
                             last_name: requestData.name.split(' ').slice(1).join(' ') || '',
@@ -259,7 +314,7 @@ function HireADesignerPageContent() {
                             city: requestData.city,
                             province: requestData.province,
                             zip: requestData.postalCode,
-                            country: 'Canada', // or make this dynamic
+                            country: 'Canada',
                             phone: requestData.phoneNumber,
                         },
                         line_items: [{
@@ -269,7 +324,6 @@ function HireADesignerPageContent() {
                         }],
                         note: `Design Request:\n\n${requestData.designDescription}\n\nContact Method: ${requestData.contactMode || 'Email'}\nStyle: ${requestData.designStyle || 'Not specified'}\n\nFiles: ${requestData.uploadedFiles?.length || 0} uploaded\nInspiration Links: ${requestData.inspirationLinks?.filter(l => l).length || 0}`,
                         tags: 'design-request,custom-order',
-                        // Include all additional data as metafields
                         metafields: {
                             design_description: requestData.designDescription,
                             contact_method: requestData.contactMode,
@@ -286,7 +340,6 @@ function HireADesignerPageContent() {
                 console.log('Successfully sent to Zapier');
             } catch (webhookError) {
                 console.error('Zapier webhook error:', webhookError);
-                // Don't fail the entire submission if webhook fails
             }
 
             toast({
@@ -348,200 +401,221 @@ function HireADesignerPageContent() {
         </div>
     );
 
-
     return (
-        <div className="bg-background font-sans">
-            <div className="max-w-[1200px] mx-auto py-16 px-5">
-                <div className="grid grid-cols-1 gap-16 items-start">
-                    <main>
-                        <h1 className="text-5xl font-bold leading-tight text-gray-800 mb-10 max-w-4xl">
-                            Our designers are ready to create your ideal design
-                        </h1>
+        <>
+            <Dialog open={isDesignerModalOpen} onOpenChange={setIsDesignerModalOpen}>
+                <DialogContent className="max-w-7xl h-[90vh] p-0">
+                     <DialogHeader className="p-6 pb-0">
+                        <DialogTitle>AI Designer</DialogTitle>
+                        <DialogDescription>
+                            Generate a design with AI. When you're done, click "Use This Design" to add it to your request.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <iframe
+                        src={`/designer?prompt=${encodeURIComponent(formState.designDescription)}`}
+                        className="w-full h-full border-0"
+                        title="AI Designer"
+                    />
+                </DialogContent>
+            </Dialog>
 
-                        <p className="text-xl font-medium text-gray-800 mb-8">It takes just 3 simple steps:</p>
+            <div className="bg-background font-sans">
+                <div className="max-w-[1200px] mx-auto py-16 px-5">
+                    <div className="grid grid-cols-1 gap-16 items-start">
+                        <main>
+                            <h1 className="text-5xl font-bold leading-tight text-gray-800 mb-10 max-w-4xl">
+                                Our designers are ready to create your ideal design
+                            </h1>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
-                            {designSteps.map((step, index) => (
-                                <div key={index} className="bg-primary p-6 rounded-lg flex items-center gap-4 text-primary-foreground">
-                                    <div className="text-4xl font-bold min-w-[30px]">{index + 1}</div>
-                                    <div className="text-base font-bold leading-snug">{step.text}</div>
-                                </div>
-                            ))}
-                        </div>
+                            <p className="text-xl font-medium text-gray-800 mb-8">It takes just 3 simple steps:</p>
 
-                        <div className="mb-10">
-                            <h2 className="text-lg font-medium text-gray-800 mb-4">Your Contact Information</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Name <span className="text-destructive">*</span></Label>
-                                    <Input id="name" type="text" placeholder="Your full name" value={formState.name} onChange={handleFormChange} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
-                                    <Input id="email" type="email" placeholder="you@example.com" value={formState.email} onChange={handleFormChange} />
-                                </div>
-                                <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="phoneNumber">Phone Number <span className="text-destructive">*</span></Label>
-                                    <Input id="phoneNumber" type="tel" placeholder="(555) 123-4567" value={formState.phoneNumber} onChange={handleFormChange} />
-                                </div>
-                                <div className="space-y-2 sm:col-span-2">
-                                    <Label htmlFor="streetAddress">Street Address <span className="text-destructive">*</span></Label>
-                                    <Input id="streetAddress" placeholder="123 Main St" value={formState.streetAddress} onChange={handleFormChange} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="province">Province <span className="text-destructive">*</span></Label>
-                                     <Select value={formState.province} onValueChange={handleSelectChange('province')}>
-                                        <SelectTrigger id="province">
-                                            <SelectValue placeholder="Select a province" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {provinces.map(p => <SelectItem key={p.code} value={p.name}>{p.name}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
-                                     <Select value={formState.city} onValueChange={handleSelectChange('city')} disabled={!formState.province}>
-                                        <SelectTrigger id="city">
-                                            <SelectValue placeholder="Select a city" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {availableCities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
-                                    <Input id="postalCode" placeholder="A1B 2C3" value={formState.postalCode} onChange={handleFormChange} />
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
+                                {designSteps.map((step, index) => (
+                                    <div key={index} className="bg-primary p-6 rounded-lg flex items-center gap-4 text-primary-foreground">
+                                        <div className="text-4xl font-bold min-w-[30px]">{index + 1}</div>
+                                        <div className="text-base font-bold leading-snug">{step.text}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mb-10">
+                                <h2 className="text-lg font-medium text-gray-800 mb-4">Your Contact Information</h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="name">Name <span className="text-destructive">*</span></Label>
+                                        <Input id="name" type="text" placeholder="Your full name" value={formState.name} onChange={handleFormChange} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
+                                        <Input id="email" type="email" placeholder="you@example.com" value={formState.email} onChange={handleFormChange} />
+                                    </div>
+                                    <div className="space-y-2 sm:col-span-2">
+                                        <Label htmlFor="phoneNumber">Phone Number <span className="text-destructive">*</span></Label>
+                                        <Input id="phoneNumber" type="tel" placeholder="(555) 123-4567" value={formState.phoneNumber} onChange={handleFormChange} />
+                                    </div>
+                                    <div className="space-y-2 sm:col-span-2">
+                                        <Label htmlFor="streetAddress">Street Address <span className="text-destructive">*</span></Label>
+                                        <Input id="streetAddress" placeholder="123 Main St" value={formState.streetAddress} onChange={handleFormChange} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="province">Province <span className="text-destructive">*</span></Label>
+                                         <Select value={formState.province} onValueChange={handleSelectChange('province')}>
+                                            <SelectTrigger id="province">
+                                                <SelectValue placeholder="Select a province" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {provinces.map(p => <SelectItem key={p.code} value={p.name}>{p.name}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
+                                         <Select value={formState.city} onValueChange={handleSelectChange('city')} disabled={!formState.province}>
+                                            <SelectTrigger id="city">
+                                                <SelectValue placeholder="Select a city" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {availableCities.map(city => <SelectItem key={city} value={city}>{city}</SelectItem>)}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                     <div className="space-y-2">
+                                        <Label htmlFor="postalCode">Postal Code <span className="text-destructive">*</span></Label>
+                                        <Input id="postalCode" placeholder="A1B 2C3" value={formState.postalCode} onChange={handleFormChange} />
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="mb-10">
-                             <ProductSelector
-                                selectedProduct={formState.selectedProduct}
-                                onProductSelect={handleProductSelect}
-                                selectedVariantId={formState.selectedVariantId}
-                                onVariantSelect={handleVariantSelect}
-                             />
-                        </div>
-                        
-                        <div className="mt-10">
-                            <Label htmlFor="designDescription" className="text-lg font-bold text-gray-800 mb-2 block">
-                                Describe your design in a few words
-                                <span className="text-destructive ml-1">*</span>
-                            </Label>
-                            <p className="text-sm text-gray-600 mb-4">
-                                For example: "I want a bold design for my trade show booth."
-                            </p>
-
-                            <Textarea
-                                id="designDescription"
-                                placeholder="Start typing here"
-                                value={formState.designDescription}
-                                onChange={(e) => setFormState(prev => ({ ...prev, designDescription: e.target.value }))}
-                                className="min-h-[150px] text-base"
-                                maxLength={500}
-                            />
-                            <div className="text-right text-sm text-gray-600 mt-2">
-                                {formState.designDescription.length}/500
-                            </div>
-                        </div>
-
-                        <div className="my-10">
-                            <StylePreference
-                                onContactModeChange={handleContactModeChange}
-                                onStyleChange={handleStyleChange}
-                            />
-                        </div>
-
-                        <div className="my-10">
-                            <ColorPreference onChange={handleColorChange} />
-                        </div>
-                        
-                        <div className="my-10">
-                            <h2 className="text-lg font-medium text-gray-800 mb-2">Upload Files</h2>
-                             <p className="text-sm text-gray-600 mb-4">Upload any logos, images, or documents for our designers.</p>
-                             <FileUploadSection 
-                                uploadedFiles={formState.uploadedFiles}
-                                onFilesChange={handleFilesUploaded} 
-                            />
-                        </div>
-
-                         <div className="my-10">
-                            <InspirationLinks
-                                onChange={handleLinksChange}
-                            />
-                        </div>
-
-                        <div className="mt-12 max-w-2xl mx-auto">
-                            <div className="bg-gray-50 rounded-xl p-6 sm:p-8 space-y-4">
-                                <h3 className="text-center text-xl font-semibold text-gray-800 mb-6">Review Your Request</h3>
-                                <div className="space-y-3">
-                                     <SummaryItem
-                                        label="Contact Information:"
-                                        value={formState.name && formState.email && formState.phoneNumber && formState.streetAddress ? 'Complete' : 'Incomplete'}
-                                        isComplete={!!(formState.name && formState.email && formState.phoneNumber && formState.streetAddress)}
-                                    />
-                                    <SummaryItem
-                                        label="Product and Variant:"
-                                        value={formState.selectedProduct ? `${formState.selectedProduct.title}${formState.selectedVariantTitle ? ` (${formState.selectedVariantTitle})` : ''}` : 'Not selected'}
-                                        isComplete={!!formState.selectedProduct && !!formState.selectedVariantId}
-                                    />
-                                    <SummaryItem
-                                        label="Description:"
-                                        value={formState.designDescription ? 'Provided' : 'Not provided'}
-                                        isComplete={!!formState.designDescription.trim()}
-                                    />
-                                    <SummaryItem
-                                        label="Contact Mode:"
-                                        value={formState.contactMode.charAt(0).toUpperCase() + formState.contactMode.slice(1)}
-                                        isComplete={!!formState.contactMode}
-                                    />
-                                     <SummaryItem
-                                        label="Style:"
-                                        value={formState.designStyle ? formState.designStyle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not specified'}
-                                        isComplete={!!formState.designStyle}
-                                    />
-                                    <SummaryItem
-                                        label="Colors:"
-                                        value={formState.colors ? 'Specified' : 'Not specified'}
-                                        isComplete={!!formState.colors}
-                                    />
-                                    <SummaryItem
-                                        label="Inspiration Links:"
-                                        value={formState.inspirationLinks.filter(l => l).length > 0 ? `${formState.inspirationLinks.filter(l => l).length} link(s)` : 'None'}
-                                        isComplete={formState.inspirationLinks.filter(l => l).length > 0}
-                                    />
-                                </div>
+                            <div className="mb-10">
+                                 <ProductSelector
+                                    selectedProduct={formState.selectedProduct}
+                                    onProductSelect={handleProductSelect}
+                                    selectedVariantId={formState.selectedVariantId}
+                                    onVariantSelect={handleVariantSelect}
+                                 />
                             </div>
                             
-                            <Button 
-                                onClick={handleSubmit}
-                                disabled={isSubmitting} 
-                                size="lg" 
-                                className="w-full mt-6 text-lg py-7"
-                            >
-                                {isSubmitting ? (
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                ) : (
-                                    <>
-                                        <Send className="mr-3 h-5 w-5" />
-                                        Submit Design Request
-                                    </>
-                                )}
-                            </Button>
-                            {submissionError && <div className="text-center mt-4 text-sm text-destructive">{submissionError}</div>}
-                        </div>
-                    </main>
+                            <div className="mt-10">
+                                <Label htmlFor="designDescription" className="text-lg font-bold text-gray-800 mb-2 block">
+                                    Describe your design in a few words
+                                    <span className="text-destructive ml-1">*</span>
+                                </Label>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    For example: "I want a bold design for my trade show booth."
+                                </p>
 
-                    
+                                <Textarea
+                                    id="designDescription"
+                                    placeholder="Start typing here"
+                                    value={formState.designDescription}
+                                    onChange={(e) => setFormState(prev => ({ ...prev, designDescription: e.target.value }))}
+                                    className="min-h-[150px] text-base"
+                                    maxLength={500}
+                                />
+                                <div className="text-right text-sm text-gray-600 mt-2">
+                                    {formState.designDescription.length}/500
+                                </div>
+
+                                <div className="mt-4">
+                                    <Button variant="outline" onClick={() => setIsDesignerModalOpen(true)}>
+                                        <Wand2 className="mr-2 h-4 w-4" />
+                                        Launch AI Designer
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="my-10">
+                                <StylePreference
+                                    onContactModeChange={handleContactModeChange}
+                                    onStyleChange={handleStyleChange}
+                                />
+                            </div>
+
+                            <div className="my-10">
+                                <ColorPreference onChange={handleColorChange} />
+                            </div>
+                            
+                            <div className="my-10">
+                                <h2 className="text-lg font-medium text-gray-800 mb-2">Upload Files</h2>
+                                 <p className="text-sm text-gray-600 mb-4">Upload any logos, images, or documents for our designers.</p>
+                                 <FileUploadSection 
+                                    uploadedFiles={formState.uploadedFiles}
+                                    onFilesChange={handleFilesUploaded} 
+                                />
+                            </div>
+
+                             <div className="my-10">
+                                <InspirationLinks
+                                    onChange={handleLinksChange}
+                                />
+                            </div>
+
+                            <div className="mt-12 max-w-2xl mx-auto">
+                                <div className="bg-gray-50 rounded-xl p-6 sm:p-8 space-y-4">
+                                    <h3 className="text-center text-xl font-semibold text-gray-800 mb-6">Review Your Request</h3>
+                                    <div className="space-y-3">
+                                         <SummaryItem
+                                            label="Contact Information:"
+                                            value={formState.name && formState.email && formState.phoneNumber && formState.streetAddress ? 'Complete' : 'Incomplete'}
+                                            isComplete={!!(formState.name && formState.email && formState.phoneNumber && formState.streetAddress)}
+                                        />
+                                        <SummaryItem
+                                            label="Product and Variant:"
+                                            value={formState.selectedProduct ? `${formState.selectedProduct.title}${formState.selectedVariantTitle ? ` (${formState.selectedVariantTitle})` : ''}` : 'Not selected'}
+                                            isComplete={!!formState.selectedProduct && !!formState.selectedVariantId}
+                                        />
+                                        <SummaryItem
+                                            label="Description:"
+                                            value={formState.designDescription ? 'Provided' : 'Not provided'}
+                                            isComplete={!!formState.designDescription.trim()}
+                                        />
+                                        <SummaryItem
+                                            label="Contact Mode:"
+                                            value={formState.contactMode.charAt(0).toUpperCase() + formState.contactMode.slice(1)}
+                                            isComplete={!!formState.contactMode}
+                                        />
+                                         <SummaryItem
+                                            label="Style:"
+                                            value={formState.designStyle ? formState.designStyle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not specified'}
+                                            isComplete={!!formState.designStyle}
+                                        />
+                                        <SummaryItem
+                                            label="Colors:"
+                                            value={formState.colors ? 'Specified' : 'Not specified'}
+                                            isComplete={!!formState.colors}
+                                        />
+                                        <SummaryItem
+                                            label="Inspiration Links:"
+                                            value={formState.inspirationLinks.filter(l => l).length > 0 ? `${formState.inspirationLinks.filter(l => l).length} link(s)` : 'None'}
+                                            isComplete={formState.inspirationLinks.filter(l => l).length > 0}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <Button 
+                                    onClick={handleSubmit}
+                                    disabled={isSubmitting || isUploading} 
+                                    size="lg" 
+                                    className="w-full mt-6 text-lg py-7"
+                                >
+                                    {isSubmitting || isUploading ? (
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Send className="mr-3 h-5 w-5" />
+                                            Submit Design Request
+                                        </>
+                                    )}
+                                </Button>
+                                {submissionError && <div className="text-center mt-4 text-sm text-destructive">{submissionError}</div>}
+                            </div>
+                        </main>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
-
 
 export default function HireADesignerPage() {
     return (
@@ -550,6 +624,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-
-    
