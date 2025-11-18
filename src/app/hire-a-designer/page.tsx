@@ -18,12 +18,13 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
-import SimpleFileUploader from '@/components/SimpleFileUploader';
+import { FileUploadSection } from '@/components/FileUploadSection';
 
 interface UploadedFile {
   name: string;
   url: string;
   size: number;
+  type: string;
   key: string;
 }
 
@@ -461,9 +462,9 @@ function HireADesignerPageContent() {
                         <div className="my-10">
                             <h2 className="text-lg font-medium text-gray-800 mb-2">Upload Files</h2>
                              <p className="text-sm text-gray-600 mb-4">Upload any logos, images, or documents for our designers.</p>
-                            <SimpleFileUploader 
-                                onFilesUploaded={handleFilesUploaded} 
+                             <FileUploadSection 
                                 uploadedFiles={formState.uploadedFiles}
+                                onFilesChange={handleFilesUploaded} 
                             />
                         </div>
 
