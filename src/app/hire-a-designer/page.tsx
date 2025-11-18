@@ -118,10 +118,11 @@ function HireADesignerPageContent() {
                     key: fileData.key,
                 };
                 
-                setFormState(prev => ({
+                 setFormState(prev => ({
                     ...prev,
                     uploadedFiles: [...prev.uploadedFiles, newFile]
                 }));
+
                 toast({ title: "AI Design Added!", description: "The generated design has been attached to your request." });
             }
         };
@@ -281,51 +282,21 @@ function HireADesignerPageContent() {
 
             saveDesignRequest(requestData);
 
-            const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/25403328/uzbcv85/';
             try {
-                const response = await fetch(ZAPIER_WEBHOOK_URL, {
+                const response = await fetch('/api/submit-design-request', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        customer: {
-                            first_name: requestData.name.split(' ')[0] || requestData.name,
-                            last_name: requestData.name.split(' ').slice(1).join(' ') || '',
-                            email: requestData.email,
-                            phone: requestData.phoneNumber,
-                        },
-                        shipping_address: {
-                            address1: requestData.streetAddress,
-                            city: requestData.city,
-                            province: requestData.province,
-                            zip: requestData.postalCode,
-                            country: 'Canada',
-                            phone: requestData.phoneNumber,
-                        },
-                        line_items: [{
-                            variant_id: requestData.selectedVariant?.id || formState.selectedProduct?.variants?.edges[0]?.node.id,
-                            quantity: 1,
-                            price: formState.selectedProduct?.priceRangeV2.minVariantPrice.amount,
-                        }],
-                        note: `Design Request:\n\n${requestData.designDescription}\n\nContact Method: ${requestData.contactMode || 'Email'}\nStyle: ${requestData.designStyle || 'Not specified'}\n\nFiles: ${requestData.uploadedFiles?.length || 0} uploaded\nInspiration Links: ${requestData.inspirationLinks?.filter(l => l).length || 0}`,
-                        tags: 'design-request,custom-order',
-                        metafields: {
-                            design_description: requestData.designDescription,
-                            contact_method: requestData.contactMode,
-                            design_style: requestData.designStyle,
-                            colors: requestData.colors,
-                            uploaded_files: JSON.stringify(requestData.uploadedFiles.map(f => f.url)),
-                            inspiration_links: JSON.stringify(requestData.inspirationLinks),
-                        }
-                    })
+                    body: JSON.stringify(requestData)
                 });
                 if (!response.ok) {
-                    throw new Error('Webhook failed');
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Webhook failed');
                 }
-                console.log('Successfully sent to Zapier');
+                console.log('Successfully sent to Zapier via API route');
             } catch (webhookError) {
-                console.error('Zapier webhook error:', webhookError);
+                console.error('API route/webhook error:', webhookError);
             }
 
             toast({
