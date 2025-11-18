@@ -25,6 +25,7 @@ interface DesignRequest {
     designStyle?: string;
     colors?: string;
     inspirationLinks?: string[];
+    uploadedFiles?: any[];
 }
 
 export default function MyWorksPage() {
@@ -34,16 +35,14 @@ export default function MyWorksPage() {
 
     useEffect(() => {
         setIsClient(true);
-        // Load all design requests from localStorage
         const savedRequests = JSON.parse(localStorage.getItem('designRequests') || '[]');
-        setRequests(savedRequests.sort((a: DesignRequest, b: DesignRequest) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())); // Show newest first
+        setRequests(savedRequests.sort((a: DesignRequest, b: DesignRequest) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     }, []);
 
     const deleteRequest = (id: number) => {
         if (confirm('Are you sure you want to delete this design request?')) {
             const updatedRequests = requests.filter(req => req.id !== id);
             setRequests(updatedRequests);
-            // The list is stored oldest-first, so re-reverse it before saving
             localStorage.setItem('designRequests', JSON.stringify([...updatedRequests].reverse()));
         }
     };
@@ -112,10 +111,17 @@ export default function MyWorksPage() {
         ${request.designStyle ? `<div class="info-group"><span class="label">Design Style:</span><span class="value">${request.designStyle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span></div>` : ''}
         ${request.colors ? `<div class="info-group"><span class="label">Colors:</span><span class="value">${request.colors}</span></div>` : ''}
 
-        ${request.inspirationLinks && request.inspirationLinks.length > 0 && request.inspirationLinks[0] ? `
+        ${request.uploadedFiles && request.uploadedFiles.length > 0 ? `
+        <h2>Uploaded Files</h2>
+        <ul class="list">
+            ${request.uploadedFiles.map(file => `<li><a href="${file.url}" target="_blank" rel="noopener noreferrer">${file.name}</a></li>`).join('')}
+        </ul>
+        ` : ''}
+
+        ${request.inspirationLinks && request.inspirationLinks.filter(l=>l).length > 0 ? `
         <h2>Inspiration Links</h2>
         <ul class="list">
-            ${request.inspirationLinks.map(link => `<li><a href="${link}" target="_blank" rel="noopener noreferrer">${link}</a></li>`).join('')}
+            ${request.inspirationLinks.filter(l=>l).map(link => `<li><a href="${link}" target="_blank" rel="noopener noreferrer">${link}</a></li>`).join('')}
         </ul>
         ` : ''}
 

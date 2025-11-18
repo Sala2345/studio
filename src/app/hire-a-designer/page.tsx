@@ -18,7 +18,14 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
+import SimpleFileUploader from '@/components/SimpleFileUploader';
 
+interface UploadedFile {
+  name: string;
+  url: string;
+  size: number;
+  key: string;
+}
 
 const designSteps = [
     {
@@ -49,6 +56,7 @@ const initialFormState = {
     colors: '',
     inspirationLinks: [''],
     shopifyCustomerId: '',
+    uploadedFiles: [],
 };
 
 interface FormState {
@@ -68,9 +76,9 @@ interface FormState {
     colors: string;
     inspirationLinks: string[];
     shopifyCustomerId?: string;
+    uploadedFiles: UploadedFile[];
 }
 
-// 1. Storage utility
 const saveDesignRequest = (requestData: any) => {
     if (typeof window === 'undefined') return;
     const existingRequests = JSON.parse(localStorage.getItem('designRequests') || '[]');
@@ -102,7 +110,6 @@ function HireADesignerPageContent() {
         setFormState(prev => ({
             ...prev, 
             selectedProduct: product,
-            // Automatically select the first variant when a product is chosen
             selectedVariantId: product?.variants.edges[0]?.node.id || null,
             selectedVariantTitle: product?.variants.edges[0]?.node.title || null,
         }));
@@ -159,7 +166,6 @@ function HireADesignerPageContent() {
         if (field === 'province') {
             const cities = getCitiesForProvince(value);
             setAvailableCities(cities);
-            // Reset city when province changes
             setFormState(prev => ({ ...prev, city: '' }));
         }
     }
@@ -180,8 +186,11 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
 
+    const handleFilesUploaded = useCallback((files: UploadedFile[]) => {
+        setFormState(prev => ({ ...prev, uploadedFiles: files }));
+    }, []);
 
-    // 2. Updated handleSubmit function
+
     const handleSubmit = async () => {
         const validationErrors = [];
         if (!formState.name.trim()) validationErrors.push('Please enter your name.');
@@ -205,10 +214,8 @@ function HireADesignerPageContent() {
         setIsSubmitting(true);
         
         try {
-            // Find the selected variant object
             const selectedVariant = formState.selectedProduct?.variants.edges.find(edge => edge.node.id === formState.selectedVariantId)?.node;
 
-            // Save the design request data
             const requestData = {
                 name: formState.name,
                 email: formState.email,
@@ -219,24 +226,22 @@ function HireADesignerPageContent() {
                 postalCode: formState.postalCode,
                 shopifyCustomerId: formState.shopifyCustomerId,
                 selectedProduct: formState.selectedProduct,
-                selectedVariant: selectedVariant, // Pass the full variant object
+                selectedVariant: selectedVariant, 
                 designDescription: formState.designDescription,
                 contactMode: formState.contactMode,
                 designStyle: formState.designStyle,
                 colors: formState.colors,
                 inspirationLinks: formState.inspirationLinks.filter(l => l),
+                uploadedFiles: formState.uploadedFiles,
             };
 
-            // Save to localStorage
             saveDesignRequest(requestData);
 
-            // Show success message
             toast({
                 title: 'Submission Successful!',
                 description: "Your design request has been submitted. View it on the My Works page.",
             });
 
-            // Reset form state
             const email = searchParams.get('email') || '';
             const name = searchParams.get('name') || '';
             const phone = searchParams.get('phone') || '';
@@ -257,6 +262,7 @@ function HireADesignerPageContent() {
                 city: city,
                 province: provinceName,
                 postalCode: zip,
+                uploadedFiles: [],
             });
             if (provinceName) {
                 setAvailableCities(getCitiesForProvince(provinceName));
@@ -399,6 +405,15 @@ function HireADesignerPageContent() {
 
                         <div className="my-10">
                             <ColorPreference onChange={handleColorChange} />
+                        </div>
+                        
+                        <div className="my-10">
+                            <h2 className="text-lg font-medium text-gray-800 mb-2">Upload Files</h2>
+                             <p className="text-sm text-gray-600 mb-4">Upload any logos, images, or documents for our designers.</p>
+                            <SimpleFileUploader 
+                                onFilesUploaded={handleFilesUploaded} 
+                                uploadedFiles={formState.uploadedFiles}
+                            />
                         </div>
 
                          <div className="my-10">
