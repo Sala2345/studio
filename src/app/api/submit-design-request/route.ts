@@ -12,12 +12,12 @@ export async function POST(request: Request) {
         .filter((opt: string) => !opt.toLowerCase().includes('default title'))
         .join('\n');
 
-    // Prepare metafields for variant options
+    // Prepare metafields for variant options as option1, option2, etc.
     const variantMetafields = requestData.selectedVariant?.selectedOptions
-        ?.reduce((acc: any, opt: { name: string, value: string }) => {
-            // Sanitize the key for metafields
-            const key = `variant_${opt.name.toLowerCase().replace(/\s+/g, '_')}`;
-            acc[key] = opt.value;
+        ?.reduce((acc: any, opt: { name: string, value: string }, index: number) => {
+            if (opt.value.toLowerCase() !== 'default title') {
+                acc[`option${index + 1}`] = `${opt.name}: ${opt.value}`;
+            }
             return acc;
         }, {}) || {};
 
