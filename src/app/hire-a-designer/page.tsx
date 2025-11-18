@@ -371,6 +371,17 @@ function HireADesignerPageContent() {
         }
     };
 
+    const getDesignerPrompt = () => {
+        const { selectedProduct, designDescription } = formState;
+        let prompt = designDescription || '';
+
+        if (selectedProduct?.title) {
+            prompt = `A design for a ${selectedProduct.title}: ${prompt}`;
+        }
+        
+        return prompt;
+    };
+
     const SummaryItem = ({ label, value, isComplete }: { label: string, value: string, isComplete: boolean }) => (
         <div className="flex items-center justify-between bg-white rounded-lg p-3">
             <div className="flex items-center gap-3">
@@ -397,7 +408,7 @@ function HireADesignerPageContent() {
                         </DialogDescription>
                     </DialogHeader>
                     <iframe
-                        src={`/designer?prompt=${encodeURIComponent(formState.designDescription)}`}
+                        src={`/designer?prompt=${encodeURIComponent(getDesignerPrompt())}`}
                         className="w-full h-full border-0"
                         title="AI Designer"
                     />
@@ -631,3 +642,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    
