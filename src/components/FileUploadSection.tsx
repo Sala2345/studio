@@ -1,8 +1,7 @@
 
 // File: components/FileUploadSection.tsx
 import React, { useState } from 'react';
-import { UploadDropzone } from "@uploadthing/react";
-import { OurFileRouter } from "@/app/api/uploadthing/core";
+import { UploadDropzone } from "@/lib/uploadthing";
 import { X, File, FileText, Image as ImageIcon, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -48,7 +47,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
   return (
     <div className="space-y-4">
       <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition">
-        <UploadDropzone<OurFileRouter>
+        <UploadDropzone
           endpoint="designFileUploader"
           onClientUploadComplete={(res) => {
             if (res) {
@@ -56,7 +55,7 @@ export const FileUploadSection: React.FC<FileUploadSectionProps> = ({
                 name: file.name,
                 url: file.url,
                 size: file.size,
-                type: file.type || 'application/octet-stream', // Fallback type
+                type: file.type,
                 key: file.key,
               }));
               onFilesChange([...uploadedFiles, ...newFiles]);
