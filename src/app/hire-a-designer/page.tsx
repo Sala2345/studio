@@ -105,18 +105,19 @@ function HireADesignerPageContent() {
     const { toast } = useToast();
 
      useEffect(() => {
-        const handleMessage = async (event: MessageEvent) => {
+        const handleMessage = (event: MessageEvent) => {
             if (event.data?.type === 'ADD_GENERATED_DESIGN') {
-                setIsDesignerModalOpen(false); // Close the modal
+                setIsDesignerModalOpen(false);
                 const { file: fileData } = event.data;
                 
                 const newFile: UploadedFile = {
                     name: fileData.name,
-                    url: fileData.url, // This will be a data URI for AI, or a CDN url for Uploadcare
+                    url: fileData.url,
                     size: fileData.size,
                     type: fileData.type,
                     key: fileData.key,
                 };
+                
                 setFormState(prev => ({
                     ...prev,
                     uploadedFiles: [...prev.uploadedFiles, newFile]

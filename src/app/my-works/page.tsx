@@ -189,7 +189,7 @@ export default function MyWorksPage() {
                             <Card key={request.id} className="hover:shadow-md transition-shadow">
                                 <CardHeader>
                                     <CardTitle className="flex justify-between items-center text-lg">
-                                        <span className="text-foreground">Request #{request.id}</span>
+                                        <span className="text-foreground">Request #${request.id}</span>
                                         <span className="text-sm font-normal text-muted-foreground">
                                             {format(new Date(request.timestamp), "MMM d, yyyy")}
                                         </span>
