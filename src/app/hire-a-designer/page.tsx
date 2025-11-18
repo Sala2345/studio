@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Send, Check, Wand2 } from 'lucide-react';
+import { Loader2, Send, Check, Wand2, Trash2, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { UploadcareWidget } from '@/components/uploadcare-widget';
 
 interface UploadedFile {
   name: string;
@@ -111,7 +112,7 @@ function HireADesignerPageContent() {
                 
                 const newFile: UploadedFile = {
                     name: fileData.name,
-                    url: fileData.url, // This will be a data URI
+                    url: fileData.url, // This will be a data URI for AI, or a CDN url for Uploadcare
                     size: fileData.size,
                     type: fileData.type,
                     key: fileData.key,
@@ -143,7 +144,7 @@ function HireADesignerPageContent() {
         const variant = formState.selectedProduct?.variants.edges.find(edge => edge.node.id === variantId)?.node;
         setFormState(prev => ({ 
             ...prev, 
-            selectedVariantId: variantId,
+            selectedVariantId: variantId, 
             selectedVariantTitle: variant?.title
         }));
     }, [formState.selectedProduct]);
@@ -209,6 +210,28 @@ function HireADesignerPageContent() {
     const handleLinksChange = useCallback((links: string[]) => {
         setFormState(prev => ({ ...prev, inspirationLinks: links }));
     }, []);
+
+    const handleFilesUploaded = useCallback((files: Omit<UploadedFile, 'key'>[]) => {
+        const newFiles = files.map(file => ({
+            ...file,
+            key: file.url, // Use URL as a key for uploaded files
+        }));
+        setFormState(prev => ({
+            ...prev,
+            uploadedFiles: [...prev.uploadedFiles, ...newFiles]
+        }));
+        toast({
+            title: "Upload Successful",
+            description: `${files.length} file(s) have been added to your request.`
+        });
+    }, []);
+
+    const removeFile = (key: string) => {
+        setFormState(prev => ({
+            ...prev,
+            uploadedFiles: prev.uploadedFiles.filter(f => f.key !== key)
+        }));
+    };
 
 
     const handleSubmit = async () => {
@@ -291,7 +314,7 @@ function HireADesignerPageContent() {
                             contact_method: requestData.contactMode,
                             design_style: requestData.designStyle,
                             colors: requestData.colors,
-                            uploaded_files: JSON.stringify(requestData.uploadedFiles),
+                            uploaded_files: JSON.stringify(requestData.uploadedFiles.map(f => f.url)),
                             inspiration_links: JSON.stringify(requestData.inspirationLinks),
                         }
                     })
@@ -486,6 +509,32 @@ function HireADesignerPageContent() {
                                 </div>
                             </div>
 
+                             <div className="my-10">
+                                 <h2 className="text-lg font-medium text-gray-800 mb-2">Upload Your Files <span className="text-base text-gray-500 font-normal">(optional)</span></h2>
+                                 <p className="text-sm text-gray-600 mb-4">Upload any logos, images, or documents that will help our designers.</p>
+                                <Card className="p-4 bg-muted/50">
+                                    <UploadcareWidget onFilesUploaded={handleFilesUploaded} />
+                                    {formState.uploadedFiles.length > 0 && (
+                                        <div className="mt-4 space-y-3 pt-4 border-t">
+                                            <h3 className="text-sm font-medium text-muted-foreground">Attached Files:</h3>
+                                            <ul className="space-y-2">
+                                                {formState.uploadedFiles.map((file) => (
+                                                    <li key={file.key} className="flex items-center justify-between text-sm bg-background p-2 rounded-md border">
+                                                        <a href={file.url} target="_blank" rel="noopener noreferrer" className="truncate text-primary hover:underline flex items-center gap-2">
+                                                            <LinkIcon className="w-4 h-4" />
+                                                            {file.name}
+                                                        </a>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeFile(file.key)}>
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </Card>
+                            </div>
+
                             <div className="my-10">
                                 <StylePreference
                                     onContactModeChange={handleContactModeChange}
@@ -521,6 +570,11 @@ function HireADesignerPageContent() {
                                             label="Description:"
                                             value={formState.designDescription ? 'Provided' : 'Not provided'}
                                             isComplete={!!formState.designDescription.trim()}
+                                        />
+                                        <SummaryItem
+                                            label="Attached Files:"
+                                            value={`${formState.uploadedFiles.length} file(s)`}
+                                            isComplete={true}
                                         />
                                         <SummaryItem
                                             label="Contact Mode:"

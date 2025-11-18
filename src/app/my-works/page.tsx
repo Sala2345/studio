@@ -7,6 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Trash2, Eye, Download, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 
+interface UploadedFile {
+  name: string;
+  url: string;
+  size: number;
+  type: string;
+  key: string;
+}
+
 interface DesignRequest {
     id: number;
     timestamp: string;
@@ -25,7 +33,7 @@ interface DesignRequest {
     designStyle?: string;
     colors?: string;
     inspirationLinks?: string[];
-    uploadedFiles?: any[];
+    uploadedFiles?: UploadedFile[];
 }
 
 export default function MyWorksPage() {
@@ -115,6 +123,13 @@ export default function MyWorksPage() {
         <h2>Inspiration Links</h2>
         <ul class="list">
             ${request.inspirationLinks.filter(l=>l).map(link => `<li><a href="${link}" target="_blank" rel="noopener noreferrer">${link}</a></li>`).join('')}
+        </ul>
+        ` : ''}
+
+        ${request.uploadedFiles && request.uploadedFiles.length > 0 ? `
+        <h2>Uploaded Files</h2>
+        <ul class="list">
+            ${request.uploadedFiles.map(file => `<li><a href="${file.url}" target="_blank" rel="noopener noreferrer">${file.name}</a></li>`).join('')}
         </ul>
         ` : ''}
 
