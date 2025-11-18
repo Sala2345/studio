@@ -2,16 +2,18 @@
 import { useState } from 'react';
 import { FileUploaderRegular } from '@uploadcare/react-uploader/next';
 import '@uploadcare/react-uploader/core.css';
+
 function App() {
   const [uploadedUrl, setUploadedUrl] = useState(null);
 
-  const handleUploadSuccess = (e) => {
-    const fileUrl = e.detail.successEntries[0]?.cdnUrl;
+  const handleUploadSuccess = (e: any) => {
+    const fileUrl = e.detail?.successEntries?.[0]?.cdnUrl;
     if (fileUrl) {
       setUploadedUrl(fileUrl);
       console.log("Uploaded file URL:", fileUrl);
     }
   };
+
   return (
     <div>
       <FileUploaderRegular
@@ -32,4 +34,5 @@ function App() {
     </div>
   );
 }
+
 export default App;
