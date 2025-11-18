@@ -183,19 +183,29 @@ function HireADesignerPageContent() {
     }, []);
 
     const handleFilesUploaded = useCallback((files: Omit<UploadedFile, 'key'>[]) => {
-        const newFiles = files.map(file => ({
-            ...file,
-            key: file.url, // Use URL as a key for uploaded files
-        }));
+        // Filter out files that are already in uploadedFiles (by URL)
+        const existingUrls = new Set(formState.uploadedFiles.map(f => f.url));
+        const newFiles = files
+            .filter(file => !existingUrls.has(file.url)) // Skip duplicates
+            .map(file => ({
+                ...file,
+                key: `${file.url}-${Date.now()}`, // Add timestamp to make key unique
+            }));
+        
+        if (newFiles.length === 0) {
+            console.log("No new files to add (duplicates detected)");
+            return;
+        }
+    
         setFormState(prev => ({
             ...prev,
             uploadedFiles: [...prev.uploadedFiles, ...newFiles]
         }));
         toast({
             title: "Upload Successful",
-            description: `${files.length} file(s) have been added to your request.`
+            description: `${newFiles.length} file(s) have been added to your request.`
         });
-    }, []);
+    }, [formState.uploadedFiles, toast]);
 
     const removeFile = (key: string) => {
         setFormState(prev => ({
@@ -549,3 +559,5 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
+
+    

@@ -1,46 +1,52 @@
-'use client';
+'use client'
+import { useState } from 'react';
 import { FileUploaderRegular } from '@uploadcare/react-uploader/next';
 import '@uploadcare/react-uploader/core.css';
-import { useCallback } from 'react';
-
-interface UploadedFile {
-  name: string;
-  url: string;
-  size: number;
-}
 
 interface UploadcareWidgetProps {
-  onFilesUploaded: (files: UploadedFile[]) => void;
+  onFilesUploaded: (files: { name: string; url: string; size: number; type: string }[]) => void;
 }
 
-function UploadcareWidget({ onFilesUploaded }: UploadcareWidgetProps) {
+export default function UploadcareWidget({ onFilesUploaded }: UploadcareWidgetProps) {
+  const handleChangeEvent = (e: any) => {
+    try {
+      console.log("Full event:", e);
+      console.log("Event keys:", Object.keys(e));
+      console.log("Event detail:", e.detail);
+      
+      // Try different possible structures
+      const successfulFiles = e.detail?.allEntries?.filter((file: any) => file.status === "success") 
+        || e.detail?.successEntries 
+        || e.allEntries?.filter((file: any) => file.status === "success")
+        || [];
+      
+      console.log("Successful files:", successfulFiles);
+      
+      if (successfulFiles.length === 0) {
+        console.log("No successful files found");
+        return;
+      }
 
-  const handleUploadSuccess = useCallback((e: any) => {
-    // The event detail contains all entries from the upload session
-    const successfulFiles = e.detail.allEntries
-      .filter((file: any) => file.status === "success")
-      .map((entry: any) => ({
+      const formattedFiles = successfulFiles.map((entry: any) => ({
+        name: entry.name || 'Unnamed file',
         url: entry.cdnUrl,
-        name: entry.fileInfo?.originalFilename || `file-${entry.uuid}`,
-        size: entry.fileInfo?.size || 0,
+        size: entry.size || 0,
+        type: entry.mimeType || 'unknown'
       }));
 
-    if (successfulFiles.length > 0) {
-      onFilesUploaded(successfulFiles);
+      console.log("Formatted files:", formattedFiles);
+      onFilesUploaded(formattedFiles);
+    } catch (error) {
+      console.error("Error processing uploads:", error);
     }
-  }, [onFilesUploaded]);
+  };
 
   return (
-    <div>
-      <FileUploaderRegular
-        sourceList="local, camera, facebook, gdrive"
-        classNameUploader="uc-light"
-        pubkey="bfba8b2aa59367bc12a8"
-        onChange={handleUploadSuccess}
-        multiple
-      />
-    </div>
+    <FileUploaderRegular
+      sourceList="local, camera, facebook, gdrive"
+      classNameUploader="uc-light"
+      pubkey="bfba8b2aa59367bc12a8"
+      onChange={handleChangeEvent}
+    />
   );
 }
-
-export default UploadcareWidget;
