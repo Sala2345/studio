@@ -6,6 +6,21 @@ export async function POST(request: Request) {
     const requestData = await request.json();
     const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/25403328/uz37lnr/';
     
+    // Create a string of variant options for the note
+    const variantOptions = requestData.selectedVariant?.selectedOptions
+        ?.map((opt: { name: string, value: string }) => `${opt.name}: ${opt.value}`)
+        .filter((opt: string) => !opt.toLowerCase().includes('default title'))
+        .join('\n');
+
+    // Prepare metafields for variant options
+    const variantMetafields = requestData.selectedVariant?.selectedOptions
+        ?.reduce((acc: any, opt: { name: string, value: string }) => {
+            // Sanitize the key for metafields
+            const key = `variant_${opt.name.toLowerCase().replace(/\s+/g, '_')}`;
+            acc[key] = opt.value;
+            return acc;
+        }, {}) || {};
+
     // Data mapping for Zapier, matching the required fields.
     const zapierPayload = {
         customer: {
@@ -23,12 +38,12 @@ export async function POST(request: Request) {
             phone: requestData.phoneNumber,
         },
         line_items: [{
-            title: requestData.selectedProduct?.title, // Product title
-            variant_name: requestData.selectedVariant?.title, // Variant name/title as requested
-            quantity: 1, // Defaulting to 1
+            title: requestData.selectedProduct?.title,
+            variant_name: requestData.selectedVariant?.title,
+            quantity: 1,
             price: requestData.selectedProduct?.priceRangeV2.minVariantPrice.amount,
         }],
-        note: `Design Request:\n\n${requestData.designDescription}\n\nContact Method: ${requestData.contactMode || 'Email'}\nStyle: ${requestData.designStyle || 'Not specified'}\n\nFiles: ${requestData.uploadedFiles?.length || 0} uploaded\nInspiration Links: ${requestData.inspirationLinks?.filter((l:string) => l).length || 0}`,
+        note: `Design Request:\n\n${requestData.designDescription}\n\n---Product Options---\n${variantOptions}\n\n---Preferences---\nContact Method: ${requestData.contactMode || 'Email'}\nStyle: ${requestData.designStyle || 'Not specified'}\n\nFiles: ${requestData.uploadedFiles?.length || 0} uploaded\nInspiration Links: ${requestData.inspirationLinks?.filter((l:string) => l).length || 0}`,
         tags: 'design-request,custom-order',
         metafields: {
             design_description: requestData.designDescription,
@@ -37,6 +52,7 @@ export async function POST(request: Request) {
             colors: requestData.colors,
             uploaded_files: JSON.stringify(requestData.uploadedFiles.map((f: {url: string}) => f.url)),
             inspiration_links: JSON.stringify(requestData.inspirationLinks),
+            ...variantMetafields, // Add variant options as metafields
         }
     };
     

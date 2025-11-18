@@ -73,6 +73,14 @@ export default function MyWorksPage() {
     };
 
     const generateHTML = (request: DesignRequest) => {
+        const variantOptions = request.selectedVariant?.selectedOptions
+            ?.map((opt: { name: string, value: string }) => {
+                if (opt.value.toLowerCase() === 'default title') return null;
+                return `<div class="info-group"><span class="label">${opt.name}:</span><span class="value">${opt.value}</span></div>`;
+            })
+            .filter(Boolean)
+            .join('') || '';
+
         return `
 <!DOCTYPE html>
 <html lang="en">
@@ -110,6 +118,7 @@ export default function MyWorksPage() {
         <h2>Product Selection</h2>
         <div class="info-group"><span class="label">Product:</span><span class="value">${request.selectedProduct?.title || 'N/A'}</span></div>
         ${request.selectedVariant ? `<div class="info-group"><span class="label">Variant:</span><span class="value">${request.selectedVariant.title}</span></div>` : ''}
+        ${variantOptions}
 
         <h2>Design Details</h2>
         <div class="info-group"><span class="label">Description:</span></div>

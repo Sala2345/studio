@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Send, Check, Trash2, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductSelector } from '@/components/product-selector';
-import type { ShopifyProduct } from '@/components/product-selector';
+import type { ShopifyProduct, ShopifyProductVariant } from '@/components/product-selector';
 import { StylePreference } from '@/components/style-preference';
 import { ColorPreference } from '@/components/color-preference';
 import { InspirationLinks } from '@/components/inspiration-links';
@@ -51,6 +51,7 @@ const initialFormState = {
     selectedProduct: null,
     selectedVariantId: null,
     selectedVariantTitle: null,
+    selectedVariantOptions: [],
     designDescription: '',
     contactMode: 'email',
     designStyle: '',
@@ -71,6 +72,7 @@ interface FormState {
     selectedProduct: ShopifyProduct | null;
     selectedVariantId: string | null;
     selectedVariantTitle?: string | null;
+    selectedVariantOptions: { name: string; value: string; }[];
     designDescription: string;
     contactMode: string;
     designStyle: string;
@@ -103,11 +105,13 @@ function HireADesignerPageContent() {
     const { toast } = useToast();
 
     const handleProductSelect = useCallback((product: ShopifyProduct | null) => {
+        const firstVariant = product?.variants.edges[0]?.node;
         setFormState(prev => ({
             ...prev, 
             selectedProduct: product,
-            selectedVariantId: product?.variants.edges[0]?.node.id || null,
-            selectedVariantTitle: product?.variants.edges[0]?.node.title || null,
+            selectedVariantId: firstVariant?.id || null,
+            selectedVariantTitle: firstVariant?.title || null,
+            selectedVariantOptions: firstVariant?.selectedOptions || [],
         }));
     }, []);
 
@@ -116,7 +120,8 @@ function HireADesignerPageContent() {
         setFormState(prev => ({ 
             ...prev, 
             selectedVariantId: variantId, 
-            selectedVariantTitle: variant?.title
+            selectedVariantTitle: variant?.title,
+            selectedVariantOptions: variant?.selectedOptions || [],
         }));
     }, [formState.selectedProduct]);
 
@@ -183,13 +188,12 @@ function HireADesignerPageContent() {
     }, []);
 
     const handleFilesUploaded = useCallback((files: Omit<UploadedFile, 'key'>[]) => {
-        // Filter out files that are already in uploadedFiles (by URL)
         const existingUrls = new Set(formState.uploadedFiles.map(f => f.url));
         const newFiles = files
-            .filter(file => !existingUrls.has(file.url)) // Skip duplicates
+            .filter(file => !existingUrls.has(file.url))
             .map(file => ({
                 ...file,
-                key: `${file.url}-${Date.now()}`, // Add timestamp to make key unique
+                key: `${file.url}-${Date.now()}`,
             }));
         
         if (newFiles.length === 0) {
@@ -336,6 +340,11 @@ function HireADesignerPageContent() {
             <span className="text-sm font-medium text-gray-800">{value}</span>
         </div>
     );
+    
+    const variantOptionsText = formState.selectedVariantOptions
+        .map(opt => `${opt.name}: ${opt.value}`)
+        .filter(opt => !opt.toLowerCase().includes('default title'))
+        .join(', ');
 
     return (
         <>
@@ -490,9 +499,14 @@ function HireADesignerPageContent() {
                                             isComplete={!!(formState.name && formState.email && formState.phoneNumber && formState.streetAddress)}
                                         />
                                         <SummaryItem
-                                            label="Product and Variant:"
-                                            value={formState.selectedProduct ? `${formState.selectedProduct.title}${formState.selectedVariantTitle ? ` (${formState.selectedVariantTitle})` : ''}` : 'Not selected'}
-                                            isComplete={!!formState.selectedProduct && !!formState.selectedVariantId}
+                                            label="Product:"
+                                            value={formState.selectedProduct ? formState.selectedProduct.title : 'Not selected'}
+                                            isComplete={!!formState.selectedProduct}
+                                        />
+                                        <SummaryItem
+                                            label="Variant:"
+                                            value={variantOptionsText || (formState.selectedProduct ? 'Default' : 'Not selected')}
+                                            isComplete={!!formState.selectedVariantId}
                                         />
                                         <SummaryItem
                                             label="Description:"
@@ -559,5 +573,3 @@ export default function HireADesignerPage() {
         </React.Suspense>
     )
 }
-
-    
