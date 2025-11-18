@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, Send, Check, Wand2, Trash2, Link as LinkIcon } from 'lucide-react';
+import { Loader2, Send, Check, Trash2, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProductSelector } from '@/components/product-selector';
 import type { ShopifyProduct } from '@/components/product-selector';
@@ -18,7 +18,6 @@ import { InspirationLinks } from '@/components/inspiration-links';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { provinces, getCitiesForProvince } from '@/lib/canadian-locations';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { UploadcareWidget } from '@/components/uploadcare-widget';
 
 interface UploadedFile {
@@ -100,38 +99,8 @@ function HireADesignerPageContent() {
     const [formState, setFormState] = useState<FormState>(initialFormState);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionError, setSubmissionError] = useState<string | null>(null);
-    const [isDesignerModalOpen, setIsDesignerModalOpen] = useState(false);
     
     const { toast } = useToast();
-
-     useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            if (event.data?.type === 'ADD_GENERATED_DESIGN') {
-                setIsDesignerModalOpen(false);
-                const { file: fileData } = event.data;
-                
-                const newFile: UploadedFile = {
-                    name: fileData.name,
-                    url: fileData.url,
-                    size: fileData.size,
-                    type: fileData.type,
-                    key: fileData.key,
-                };
-                
-                 setFormState(prev => ({
-                    ...prev,
-                    uploadedFiles: [...prev.uploadedFiles, newFile]
-                }));
-
-                toast({ title: "AI Design Added!", description: "The generated design has been attached to your request." });
-            }
-        };
-
-        window.addEventListener('message', handleMessage);
-        return () => window.removeEventListener('message', handleMessage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
 
     const handleProductSelect = useCallback((product: ShopifyProduct | null) => {
         setFormState(prev => ({
@@ -343,17 +312,6 @@ function HireADesignerPageContent() {
         }
     };
 
-    const getDesignerPrompt = () => {
-        const { selectedProduct, designDescription } = formState;
-        let prompt = designDescription || '';
-
-        if (selectedProduct?.title) {
-            prompt = `A design for a ${selectedProduct.title}: ${prompt}`;
-        }
-        
-        return prompt;
-    };
-
     const SummaryItem = ({ label, value, isComplete }: { label: string, value: string, isComplete: boolean }) => (
         <div className="flex items-center justify-between bg-white rounded-lg p-3">
             <div className="flex items-center gap-3">
@@ -371,22 +329,6 @@ function HireADesignerPageContent() {
 
     return (
         <>
-            <Dialog open={isDesignerModalOpen} onOpenChange={setIsDesignerModalOpen}>
-                <DialogContent className="max-w-7xl h-[90vh] p-0">
-                     <DialogHeader className="p-6 pb-0">
-                        <DialogTitle>AI Designer</DialogTitle>
-                        <DialogDescription>
-                            Generate a design with AI. When you're done, click "Use This Design" to add it to your request.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <iframe
-                        src={`/designer?prompt=${encodeURIComponent(getDesignerPrompt())}`}
-                        className="w-full h-full border-0"
-                        title="AI Designer"
-                    />
-                </DialogContent>
-            </Dialog>
-
             <div className="bg-background font-sans">
                 <div className="max-w-[1200px] mx-auto py-16 px-5">
                     <div className="grid grid-cols-1 gap-16 items-start">
@@ -482,13 +424,6 @@ function HireADesignerPageContent() {
                                 />
                                 <div className="text-right text-sm text-gray-600 mt-2">
                                     {formState.designDescription.length}/500
-                                </div>
-
-                                <div className="mt-4">
-                                    <Button variant="outline" onClick={() => setIsDesignerModalOpen(true)}>
-                                        <Wand2 className="mr-2 h-4 w-4" />
-                                        Launch AI Designer
-                                    </Button>
                                 </div>
                             </div>
 
