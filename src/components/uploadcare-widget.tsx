@@ -1,9 +1,7 @@
-
-'use client'; 
+'use client';
 import { FileUploaderRegular } from '@uploadcare/react-uploader/next';
 import '@uploadcare/react-uploader/core.css';
 import { useCallback } from 'react';
-import type { FileEntry } from '@uploadcare/react-uploader';
 
 interface UploadedFile {
     name: string;
@@ -16,17 +14,19 @@ interface UploadcareWidgetProps {
   onFilesUploaded: (files: UploadedFile[]) => void;
 }
 
-export function UploadcareWidget({ onFilesUploaded: handleFilesUploaded }: UploadcareWidgetProps) {
+export function UploadcareWidget({ onFilesUploaded }: UploadcareWidgetProps) {
 
-  const handleSuccess = useCallback((result: FileEntry[]) => {
-    const uploadedFiles = result.map(entry => ({
-      name: entry.fileInfo?.originalFilename || `file-${entry.uuid}`,
-      url: entry.cdnUrl || '',
-      size: entry.fileInfo?.size || 0,
-      type: entry.fileInfo?.mimeType || '',
-    }));
-    handleFilesUploaded(uploadedFiles);
-  }, [handleFilesUploaded]);
+  const handleSuccess = useCallback((e: any) => {
+    if (e.detail?.successEntries) {
+        const uploadedFiles = e.detail.successEntries.map((entry: any) => ({
+            name: entry.fileInfo?.originalFilename || `file-${entry.uuid}`,
+            url: entry.cdnUrl || '',
+            size: entry.fileInfo?.size || 0,
+            type: entry.fileInfo?.mimeType || '',
+        }));
+        onFilesUploaded(uploadedFiles);
+    }
+  }, [onFilesUploaded]);
 
   return (
     <div>
@@ -34,7 +34,8 @@ export function UploadcareWidget({ onFilesUploaded: handleFilesUploaded }: Uploa
          sourceList="local, camera, facebook, gdrive"
          classNameUploader="uc-light"
          pubkey="bfba8b2aa59367bc12a8"
-         onFilesUpload={handleSuccess}
+         multiple
+         onCommonUploadSuccess={handleSuccess}
       />
     </div>
   );
