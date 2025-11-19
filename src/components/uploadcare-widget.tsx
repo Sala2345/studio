@@ -1,6 +1,6 @@
 'use client'
 import React from 'react';
-import { FileUploaderRegular } from '@uploadcare/react-uploader/next';
+import { FileUploaderRegular } from '@uploadcare/react-uploader';
 import '@uploadcare/react-uploader/core.css';
 
 interface UploadcareWidgetProps {
