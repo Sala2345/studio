@@ -45,7 +45,7 @@ export default function UploadcareWidget({ onFilesUploaded }: UploadcareWidgetPr
     <FileUploaderRegular
       sourceList="local, camera, facebook, gdrive"
       classNameUploader="uc-light"
-      pubkey="bfba8b2aa59367bc12a8"
+      pubkey=""
       onChange={handleChangeEvent}
     />
   );
