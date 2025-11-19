@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react';
+import React from 'react';
 import { FileUploaderRegular } from '@uploadcare/react-uploader/next';
 import '@uploadcare/react-uploader/core.css';
 
