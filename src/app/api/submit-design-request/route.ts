@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const requestData = await request.json();
-    const ZAPIER_WEBHOOK_URL = 'https://hooks.zapier.com/hooks/catch/25403328/uz37lnr/';
+    const ZAPIER_WEBHOOK_URL = '';
     
     // Create a string of variant options for the note
     const variantOptions = requestData.selectedVariant?.selectedOptions
